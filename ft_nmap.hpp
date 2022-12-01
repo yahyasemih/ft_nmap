@@ -36,8 +36,8 @@ typedef struct {
 	uint8_t			threads_number;
 	uint16_t		*ports;
 	struct in_addr	*ips;
-	uint8_t			ports_number;
-	uint8_t			ips_number;
+	uint16_t		ports_number;
+	uint16_t		ips_number;
     int             socket_fd;
 }	nmap_context_t;
 

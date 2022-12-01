@@ -2,10 +2,89 @@
 // Created by Yahya Ez-zainabi on 11/30/22.
 //
 
-#include <ifaddrs.h>
 #include "ft_nmap.hpp"
 
-struct in_addr *append_ip(char *ip, struct in_addr *ips, uint8_t ips_number) {
+uint16_t    *append_port(uint16_t port, uint16_t *ports, uint16_t ports_number) {
+    uint16_t *new_ports = (uint16_t *)malloc((ports_number + 1) * sizeof(uint16_t));
+
+    if (new_ports == NULL) {
+        free(ports);
+        return NULL;
+    }
+    memcpy(new_ports, ports, ports_number * sizeof(uint16_t));
+    new_ports[ports_number] = port;
+    free(ports);
+    return new_ports;
+}
+
+int is_port_range(const char *arg, int len) {
+    if (arg == NULL) {
+        return 0;
+    }
+    int i = 0;
+    while (i < len && arg[i] != '-') {
+        ++i;
+    }
+    if (arg[i] == '-' && i + 1 < len) {
+        return i;
+    } else {
+        return 0;
+    }
+}
+
+int is_valid_port(const char *arg, int len) {
+    for (int i = 0; i < len; ++i) {
+        if (arg[i] > '9' || arg[i] < '0') {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int process_ports(char *arg, nmap_context_t *ctx) {
+    char	*start_ptr;
+    char	*end_ptr;
+    int     range_idx;
+    int     port;
+    int     port_a;
+    int     port_b;
+
+    start_ptr = arg;
+    while (start_ptr != NULL && *start_ptr != '\0') {
+        end_ptr = start_ptr;
+        while (*end_ptr != '\0' && *end_ptr != ',') {
+            end_ptr++;
+        }
+        range_idx = is_port_range(start_ptr, (int)(end_ptr - start_ptr));
+        if (range_idx > 0) {
+            port_a = atoi(start_ptr);
+            port_b = atoi(start_ptr + range_idx + 1);
+            if (port_a < 0 || port_a > 65535 || port_b < 0 || port_b > 65535 || port_a > port_b) {
+                return 1;
+            }
+            for (port = port_a; port <= port_b; ++port) {
+                ctx->ports = append_port((uint16_t)port, ctx->ports, ctx->ports_number++);
+            }
+        } else if (is_valid_port(start_ptr, (int)(end_ptr - start_ptr))) {
+            port = atoi(start_ptr);
+            if (port < 0 || port > 65535) {
+                return 1;
+            }
+            ctx->ports = append_port((uint16_t)port, ctx->ports, ctx->ports_number++);
+            if (ctx->ports == NULL) {
+                return 1;
+            }
+        } else {
+            return 1;
+        }
+        if (*end_ptr == '\0')
+            break;
+        start_ptr = end_ptr + 1;
+    }
+    return 0;
+}
+
+struct in_addr  *append_ip(char *ip, struct in_addr *ips, uint8_t ips_number) {
 	struct addrinfo *info = NULL;
 	int res = getaddrinfo(ip, NULL, NULL, &info);
 	if (res) {
@@ -133,7 +212,12 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
 				fprintf(stderr, "ft_nmap: invalid scan: `%s'", argv[i]);
 				return 1;
 			}
-		} else if (strcmp(argv[i], "--help") == 0) {
+        } else if (strcmp(argv[i], "--ports") == 0) {
+            if (process_ports(argv[++i], ctx)) {
+                fprintf(stderr, "ft_nmap: invalid port argument: %s\n", argv[i]);
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--help") == 0) {
 			display_help(argv[0]);
 			// TODO: cleanup allocated things
 			return 0;
@@ -283,7 +367,7 @@ int send_packet(int socket_fd, struct in_addr host_addr) {
 //}
 
 int	main(int argc, char **argv) {
-	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1};
+	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, NULL};
 //	if (getuid() != 0) {
 //		fprintf(stderr, "please run as root to be able to create raw sockets\n");
 //		return 1;
@@ -299,13 +383,17 @@ int	main(int argc, char **argv) {
 		ctx.scan_types = SCAN_ALL;
 	}
 	printf("scans %d\n", ctx.scan_types);
-	for (int i = 0; i < ctx.ips_number; ++i) {
+	for (uint16_t i = 0; i < ctx.ips_number; ++i) {
 		printf("%s\n", inet_ntoa(ctx.ips[i]));
 	}
+    for (uint16_t i = 0; i < ctx.ports_number; ++i) {
+        printf("%d\n", ctx.ports[i]);
+    }
     if (initialize_socket(&ctx)) {
         return 1;
     }
-    for (uint8_t i = 0; i < ctx.ips_number; ++i) {
+    // TODO: sort and remove duplicated ports
+    for (uint16_t i = 0; i < ctx.ips_number; ++i) {
 	    send_packet(ctx.socket_fd, ctx.ips[i]);
     }
 	return 0;
