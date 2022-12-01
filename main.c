@@ -229,63 +229,52 @@ int scan_type_to_th_flags(int scan_type) {
     }
 }
 
-tcpip_packet_t  create_tcp_packet(struct in_addr *src_ip, struct in_addr *dst_ip, u_short port, int scan_type) {
+tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, int scan_type) {
     tcpip_packet_t  packet;
+    struct timeval tv;
 
-    packet.ip_header.saddr = src_ip->s_addr;
-    packet.ip_header.daddr = dst_ip->s_addr;
-    packet.ip_header.version = 4;
-    packet.ip_header.ihl = 5;
-    packet.ip_header.tos = 0;
-    packet.ip_header.tot_len = htons(sizeof(tcpip_packet_t));
-    packet.ip_header.id = htons((uint16_t)getpid()); // TODO: change to something random and allowed
-    packet.ip_header.frag_off = 0;
-    packet.ip_header.ttl = 255;
-    packet.ip_header.protocol = IPPROTO_TCP;
-    ft_ip_checksum((u_short *)&packet.ip_header);
-    packet.tcp_header.th_flags = scan_type_to_th_flags(scan_type);
-    packet.tcp_header.seq = (uint16_t)getpid();
-    packet.tcp_header.doff = 5;
-    packet.tcp_header.window = htons(1024);
-    packet.tcp_header.th_dport = htons(port);
-    ft_tcp_checksum(&packet.ip_header, (u_short *)&packet.tcp_header);
+    gettimeofday(&tv, NULL);
+    inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);
+    packet.ip_hdr.daddr = dst_ip.s_addr;
+    packet.ip_hdr.version = 4;
+    packet.ip_hdr.ihl = 5;
+    packet.ip_hdr.tos = 0;
+    packet.ip_hdr.tot_len = htons(sizeof(tcpip_packet_t));
+    packet.ip_hdr.id = htons(tv.tv_usec & 0xFFFF);
+    packet.ip_hdr.frag_off = 0;
+    packet.ip_hdr.ttl = 255;
+    packet.ip_hdr.protocol = IPPROTO_TCP;
+    ft_ip_checksum((u_short *)&packet.ip_hdr);
+    packet.tcp_hdr.th_flags = scan_type_to_th_flags(scan_type);
+    packet.tcp_hdr.seq = ((tv.tv_sec & 0xFFFFFFFF) + tv.tv_usec) & 0xFFFFFFFF;
+    packet.tcp_hdr.doff = 5;
+    packet.tcp_hdr.window = htons(1024);
+    packet.tcp_hdr.th_dport = htons(port);
+    ft_tcp_checksum(&packet.ip_hdr, (u_short *)&packet.tcp_hdr);
 
     return packet;
 }
 
-int send_packet(nmap_context_t *ctx) {
-	struct sockaddr_in *dst_addr;
-    struct addrinfo *addr;
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_RAW;
-    hints.ai_protocol = IPPROTO_TCP;
-    char *host = "10.11.2.14";
-    int ret = getaddrinfo(host, NULL, &hints, &addr);
-    if (ret) {
-        fprintf(stderr, "getaddrinfo: %s: %s\n", host, gai_strerror(ret));
-        freeaddrinfo(addr);
-    }
-    dst_addr = (struct sockaddr_in *)addr->ai_addr;
-	socklen_t dst_addr_len = sizeof(*dst_addr);
-    struct in_addr src_addr;
-    inet_pton(AF_INET, "10.11.100.232", &src_addr);
-    tcpip_packet_t packet = create_tcp_packet(&src_addr, &dst_addr->sin_addr, 1337, SCAN_NULL);
-    printf("sent tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_header.seq, packet.tcp_header.ack, packet.tcp_header.ack_seq);
-    printf("tcp sum %d\n", packet.tcp_header.check);
-	ssize_t sent = sendto(ctx->socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)dst_addr, dst_addr_len);
+int send_packet(int socket_fd, struct in_addr host_addr) {
+	struct sockaddr_in dst_addr = {AF_INET, 4242, host_addr, {0}};
+	socklen_t dst_addr_len = sizeof(dst_addr);
+
+    tcpip_packet_t packet = create_tcp_packet(dst_addr.sin_addr, 1337, SCAN_NULL);
+    printf("sent tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_hdr.seq, packet.tcp_hdr.ack, packet.tcp_hdr.ack_seq);
+    printf("tcp sum %d\n", packet.tcp_hdr.check);
+	ssize_t sent = sendto(socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr, dst_addr_len);
 	printf("sent %zu\n", sent);
 	perror("sendto:");
     memset(&packet, 0, sizeof(packet));
-	ssize_t received = recvfrom(ctx->socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)dst_addr, &dst_addr_len);
+	ssize_t received = recvfrom(socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
     perror("recvfrom:");
 	printf("received %zu\n", received);
-    struct in_addr src = {packet.ip_header.saddr};
-    struct in_addr dst = {packet.ip_header.daddr};
+    struct in_addr src = {packet.ip_hdr.saddr};
+    struct in_addr dst = {packet.ip_hdr.daddr};
+    printf("id: %d\n", packet.ip_hdr.id);
     printf("ip_src: %s, ip_dst: %s\n", inet_ntoa(src), inet_ntoa(dst));
-	printf("th_flags: %u\n", packet.tcp_header.th_flags);
-	printf("tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_header.seq, packet.tcp_header.ack, packet.tcp_header.ack_seq);
+	printf("th_flags: %u\n", packet.tcp_hdr.th_flags);
+	printf("tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_hdr.seq, packet.tcp_hdr.ack, packet.tcp_hdr.ack_seq);
 	return 0;
 }
 
@@ -316,6 +305,8 @@ int	main(int argc, char **argv) {
     if (initialize_socket(&ctx)) {
         return 1;
     }
-	send_packet(&ctx);
+    for (uint8_t i = 0; i < ctx.ips_number; ++i) {
+	    send_packet(ctx.socket_fd, ctx.ips[i]);
+    }
 	return 0;
 }
