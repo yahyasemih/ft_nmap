@@ -229,10 +229,10 @@ int scan_type_to_th_flags(int scan_type) {
     }
 }
 
-tcpip_packet_t  create_packet(struct in_addr *dst_ip, u_short port, int scan_type) {
+tcpip_packet_t  create_tcp_packet(struct in_addr *src_ip, struct in_addr *dst_ip, u_short port, int scan_type) {
     tcpip_packet_t  packet;
 
-    inet_pton(AF_INET, "10.11.100.232", &packet.ip_header.saddr);
+    packet.ip_header.saddr = src_ip->s_addr;
     packet.ip_header.daddr = dst_ip->s_addr;
     packet.ip_header.version = 4;
     packet.ip_header.ihl = 5;
@@ -269,7 +269,9 @@ int send_packet(nmap_context_t *ctx) {
     }
     dst_addr = (struct sockaddr_in *)addr->ai_addr;
 	socklen_t dst_addr_len = sizeof(*dst_addr);
-    tcpip_packet_t packet = create_packet(&dst_addr->sin_addr, 1337, SCAN_NULL);
+    struct in_addr src_addr;
+    inet_pton(AF_INET, "10.11.100.232", &src_addr);
+    tcpip_packet_t packet = create_tcp_packet(&src_addr, &dst_addr->sin_addr, 1337, SCAN_NULL);
     printf("sent tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_header.seq, packet.tcp_header.ack, packet.tcp_header.ack_seq);
     printf("tcp sum %d\n", packet.tcp_header.check);
 	ssize_t sent = sendto(ctx->socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)dst_addr, dst_addr_len);
