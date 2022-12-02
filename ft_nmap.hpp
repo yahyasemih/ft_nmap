@@ -32,6 +32,19 @@
 #define INVALID_THREADS_NUMBER	(uint8_t)0xff
 
 typedef struct {
+    uint16_t    port;
+    int         results[6];
+    int         conclusion;
+}   scan_result_entry_t;
+
+typedef struct {
+    in_addr_t           port;
+    uint16_t            open_ports;
+    uint16_t            total_ports;
+    scan_result_entry_t *entries;
+}   scan_result_t;
+
+typedef struct {
 	uint8_t			scan_types;
 	uint8_t			threads_number;
 	uint16_t		*ports;
@@ -39,6 +52,7 @@ typedef struct {
 	uint16_t		ports_number;
 	uint16_t		ips_number;
     int             socket_fd;
+    scan_result_t   *scan_result;
 }	nmap_context_t;
 
 typedef struct {

@@ -4,6 +4,22 @@
 
 #include "ft_nmap.hpp"
 
+void clear_nmap_context(nmap_context_t *ctx) {
+    close(ctx->socket_fd);
+    ctx->socket_fd = -1;
+    free(ctx->ports);
+    ctx->ports = NULL;
+    free(ctx->ips);
+    ctx->ips = NULL;
+    if (ctx->scan_result != NULL) {
+        for (int i = 0; i < ctx->ips_number; ++i) {
+            free(ctx->scan_result[i].entries);
+        }
+        free(ctx->scan_result);
+        ctx->scan_result = NULL;
+    }
+}
+
 uint16_t    *append_port(uint16_t port, uint16_t *ports, uint16_t ports_number) {
     uint16_t *new_ports = (uint16_t *)malloc((ports_number + 1) * sizeof(uint16_t));
 
@@ -219,14 +235,17 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
             }
         } else if (strcmp(argv[i], "--help") == 0) {
 			display_help(argv[0]);
-			// TODO: cleanup allocated things
-			return 0;
+            clear_nmap_context(ctx);
+			exit(0);
 		} else {
 			fprintf(stderr, "ft_nmap: invalid option: `%s'\n", argv[i]);
 			display_help(argv[0]);
 			return 1;
 		}
 	}
+    if (ctx->scan_types == SCAN_EMPTY) {
+        ctx->scan_types = SCAN_ALL;
+    }
 	return 0;
 }
 
@@ -299,7 +318,7 @@ int initialize_socket(nmap_context_t *ctx) {
     return 0;
 }
 
-int scan_type_to_th_flags(int scan_type) {
+uint8_t scan_type_to_th_flags(int scan_type) {
     if (scan_type == SCAN_SYN) {
         return TH_SYN;
     } else if (scan_type == SCAN_ACK) {
@@ -317,6 +336,7 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, int scan_
     tcpip_packet_t  packet;
     struct timeval tv;
 
+    bzero(&packet, sizeof(packet));
     gettimeofday(&tv, NULL);
     inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);
     packet.ip_hdr.daddr = dst_ip.s_addr;
@@ -339,14 +359,14 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, int scan_
     return packet;
 }
 
-int send_packet(int socket_fd, struct in_addr host_addr) {
-	struct sockaddr_in dst_addr = {AF_INET, 4242, host_addr, {0}};
+uint8_t do_tcp_scan(int socket_fd, struct in_addr host_addr, uint16_t port, int scan_type) {
+	struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
 
-    tcpip_packet_t packet = create_tcp_packet(dst_addr.sin_addr, 1337, SCAN_NULL);
+    tcpip_packet_t packet = create_tcp_packet(dst_addr.sin_addr, port, scan_type);
     printf("sent tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_hdr.seq, packet.tcp_hdr.ack, packet.tcp_hdr.ack_seq);
     printf("tcp sum %d\n", packet.tcp_hdr.check);
-	ssize_t sent = sendto(socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr, dst_addr_len);
+	ssize_t sent = sendto(socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr, dst_addr_len);
 	printf("sent %zu\n", sent);
 	perror("sendto:");
     memset(&packet, 0, sizeof(packet));
@@ -359,12 +379,41 @@ int send_packet(int socket_fd, struct in_addr host_addr) {
     printf("ip_src: %s, ip_dst: %s\n", inet_ntoa(src), inet_ntoa(dst));
 	printf("th_flags: %u\n", packet.tcp_hdr.th_flags);
 	printf("tcp seq: %u, ack: %u, ack seq: %u\n", packet.tcp_hdr.seq, packet.tcp_hdr.ack, packet.tcp_hdr.ack_seq);
-	return 0;
+
+	return packet.tcp_hdr.th_flags;
 }
 
-//void perform_scans(nmap_context_t *ctx) {
-//
-//}
+void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_idx, int ports_number) {
+    for (int i = 0; i < ips_number; ++i) {
+        for (int j = 0; j < ports_number; ++j) {
+            for (int scan_type = SCAN_NULL; scan_type <= SCAN_UDP; scan_type *= 2) {
+                if (!(scan_type & ctx->scan_types)) {
+                    continue;
+                }
+                if (scan_type != SCAN_UDP) {
+                    do_tcp_scan(ctx->socket_fd, ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
+                }
+            }
+        }
+    }
+}
+
+int initialize_results(nmap_context_t *ctx) {
+    ctx->scan_result = (scan_result_t *)malloc(ctx->ips_number * sizeof(scan_result_t));
+    if (ctx->scan_result == NULL) {
+        return 1;
+    }
+    for (uint16_t i = 0; i < ctx->ips_number; i++) {
+        ctx->scan_result[i].entries = (scan_result_entry_t *)malloc(ctx->ports_number * sizeof(scan_result_entry_t));
+        if (ctx->scan_result[i].entries == NULL) {
+            return 1;
+        }
+        bzero(ctx->scan_result[i].entries, ctx->ports_number * sizeof(scan_result_entry_t));
+        ctx->scan_result[i].open_ports = 0;
+        ctx->scan_result[i].total_ports = ctx->ports_number;
+    }
+    return 0;
+}
 
 int	main(int argc, char **argv) {
 	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, NULL};
@@ -376,25 +425,22 @@ int	main(int argc, char **argv) {
 		display_help(argv[0]);
 		return 1;
 	}
-	if (parse_options(argc, argv, &ctx)) {
+	if (parse_options(argc, argv, &ctx) || initialize_socket(&ctx) || initialize_results(&ctx)) {
+        clear_nmap_context(&ctx);
 		return 1;
 	}
-	if (ctx.scan_types == SCAN_EMPTY) {
-		ctx.scan_types = SCAN_ALL;
-	}
-	printf("scans %d\n", ctx.scan_types);
 	for (uint16_t i = 0; i < ctx.ips_number; ++i) {
 		printf("%s\n", inet_ntoa(ctx.ips[i]));
 	}
     for (uint16_t i = 0; i < ctx.ports_number; ++i) {
         printf("%d\n", ctx.ports[i]);
     }
-    if (initialize_socket(&ctx)) {
-        return 1;
-    }
     // TODO: sort and remove duplicated ports
-    for (uint16_t i = 0; i < ctx.ips_number; ++i) {
-	    send_packet(ctx.socket_fd, ctx.ips[i]);
+    if (ctx.threads_number == 0) {
+        perform_scans(&ctx, 0, ctx.ips_number, 0, ctx.ports_number);
+    } else {
+        // TODO: add threads
     }
+    clear_nmap_context(&ctx);
 	return 0;
 }
