@@ -67,6 +67,7 @@ typedef struct nmap_context_s {
     scan_result_t   *scan_result;
     char            *interface;
     int             ttl;
+    int             source_port;
     int             packet_trace;
 }	nmap_context_t;
 

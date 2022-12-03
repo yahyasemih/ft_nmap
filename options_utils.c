@@ -249,6 +249,12 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
                 fprintf(stderr, "ft_nmap: invalid port argument: %s\n", argv[i]);
                 return 1;
             }
+        } else if (strcmp(argv[i], "--source-port") == 0) {
+            ctx->source_port = atoi(argv[++i]);
+            if (ctx->source_port < 0 || ctx->source_port > 65535) {
+                fprintf(stderr, "ft_nmap: invalid source port argument: %s\n", argv[i]);
+                return 1;
+            }
         } else if (strcmp(argv[i], "--interface") == 0) {
 			ctx->interface = argv[++i];
         } else if (strcmp(argv[i], "--packet-trace") == 0) {
@@ -303,5 +309,6 @@ void display_help(char *path) {
 	printf("--scan\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
 	printf("--interface\tUse specified interface\n");
 	printf("--ttl\t\tSet IP time-to-live field\n"); // TODO: only parsed, should be used
+	printf("--source-port\tUse given port number\n"); // TODO: only parsed, should be used
 	printf("--packet-trace\tShow all packets sent and received\n"); // TODO: only parsed, should be used
 }
