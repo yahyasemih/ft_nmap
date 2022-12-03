@@ -72,8 +72,8 @@ static void    print_ports(scan_result_t *result, const char *type, int number, 
             printf(" %*s", 120 - result_to_str(result->entries[i].results), "");
             printf(" %-20s\n", port_state_to_str(result->entries[i].conclusion));
         }
+        printf("\n");
     }
-    printf("\n");
 }
 
 static void    print_scans(scan_type_t scans) {
