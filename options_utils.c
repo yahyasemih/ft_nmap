@@ -108,6 +108,7 @@ static int read_ips_from_file(char *filename, nmap_context_t *ctx) {
 	char address[255];
 	FILE *f = fopen(filename, "rb");
 	if (f == NULL) {
+        fprintf(stderr, "ft_nmap: invalid file: `%s'\n", filename);
 		return 1;
 	}
 	while (!feof(f)) {
@@ -254,6 +255,10 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
 			return 1;
 		}
 	}
+    if (ctx->ips_number == 0) {
+        fprintf(stderr, "ft_nmap: no IP address given, either use --ip or --file options\n");
+        return 1;
+    }
     if (ctx->scan_types == SCAN_EMPTY) {
         ctx->scan_types = SCAN_ALL;
     }
