@@ -35,7 +35,7 @@ static port_state_t    do_tcp_scan(int socket_fd, struct in_addr host_addr, uint
     bzero(&packet, sizeof(packet));
 	ssize_t received = recvfrom(socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
     if (received < 0) {
-        return NO_RESULT;
+        return FILTERED_PORT;
     }
     if (scan_type == SCAN_NULL || scan_type == SCAN_XMAS || scan_type == SCAN_FIN) {
         if (packet.ip_hdr.saddr == host_addr.s_addr) {
@@ -67,7 +67,7 @@ static port_state_t    do_tcp_scan(int socket_fd, struct in_addr host_addr, uint
                 return FILTERED_PORT;
             }
         } else {
-            return OPEN_PORT;
+            return FILTERED_PORT;
         }
     }
     return NO_RESULT;
