@@ -45,7 +45,7 @@ int initialize_results(nmap_context_t *ctx) {
 }
 
 int	main(int argc, char **argv) {
-	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, -1, NULL};
+	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, -1, NULL, NULL, 255, 0};
     struct timeval start_tv;
     struct timeval end_tv;
 //	if (getuid() != 0) {

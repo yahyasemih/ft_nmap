@@ -219,6 +219,10 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
 			fprintf(stderr, "ft_nmap: invalid option: `%s'\n", argv[i]);
 			return 1;
 		}
+        if (i + 1 == argc && strcmp(argv[i], "--help") != 0 && strcmp(argv[i], "--packet-trace") != 0) {
+            fprintf(stderr, "ft_nmap: argument required for `%s'\n", argv[i]);
+            return 1;
+        }
 		if (strcmp(argv[i], "--ip") == 0) {
 			ctx->ips = append_ip(argv[++i], ctx->ips, ctx->ips_number++);
 			if (ctx->ips == NULL) {
@@ -243,6 +247,16 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
         } else if (strcmp(argv[i], "--ports") == 0) {
             if (process_ports(argv[++i], ctx)) {
                 fprintf(stderr, "ft_nmap: invalid port argument: %s\n", argv[i]);
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--interface") == 0) {
+			ctx->interface = argv[++i];
+        } else if (strcmp(argv[i], "--packet-trace") == 0) {
+			ctx->packet_trace = 1;
+        } else if (strcmp(argv[i], "--ttl") == 0) {
+			ctx->ttl = atoi(argv[++i]);
+            if (ctx->ttl < 0 || ctx->ttl > 255) {
+                fprintf(stderr, "ft_nmap: ttl option must be a number between 0 and 255 (inclusive)\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "--help") == 0) {
@@ -272,6 +286,8 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
             fprintf(stderr, "ft_nmap: number of ports should not exceed 1024\n");
             return 1;
         }
+    }if (ctx->interface == NULL) {
+        ctx->interface = "enp0s3";
     }
 	return 0;
 }
@@ -285,4 +301,7 @@ void display_help(char *path) {
 	printf("--file\t\tFile name containing IP addresses to scan\n");
 	printf("--speedup\t[250 max] number of parallel threads to use\n");
 	printf("--scan\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
+	printf("--interface\tUse specified interface\n");
+	printf("--ttl\t\tSet IP time-to-live field\n"); // TODO: only parsed, should be used
+	printf("--packet-trace\tShow all packets sent and received\n"); // TODO: only parsed, should be used
 }

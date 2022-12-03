@@ -90,20 +90,19 @@ int initialize_socket(nmap_context_t *ctx) {
     struct timeval timeout;
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
-    char* interface = "enp0s3";
     int options = 1;
 
     if (setsockopt(ctx->tcp_socket_fd, IPPROTO_IP, IP_HDRINCL, &options, sizeof(options)) < 0
         || setsockopt (ctx->tcp_socket_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0
         || setsockopt (ctx->tcp_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0
-        || setsockopt( ctx->tcp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, interface, strlen(interface)) < 0) {
+        || setsockopt( ctx->tcp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, ctx->interface, strlen(ctx->interface)) < 0) {
         fprintf(stderr, "ft_nmap: TCP setsockopt: %s\n", strerror(errno));
         return 1;
     }
     if (setsockopt(ctx->udp_socket_fd, IPPROTO_IP, IP_HDRINCL, &options, sizeof(options)) < 0
         || setsockopt (ctx->udp_socket_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0
         || setsockopt (ctx->udp_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0
-        || setsockopt( ctx->udp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, interface, strlen(interface)) < 0) {
+        || setsockopt( ctx->udp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, ctx->interface, strlen(ctx->interface)) < 0) {
         fprintf(stderr, "ft_nmap: UDP setsockopt: %s\n", strerror(errno));
         return 1;
     }
@@ -173,4 +172,11 @@ udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port) {
     ft_udp_checksum(&packet.ip_hdr, (u_short *)&packet.udp_hdr);
 
     return packet;
+}
+
+int dns_resolve(struct in_addr host_addr, char *dest, int size) {
+    struct sockaddr_in socket_address;
+    socket_address.sin_family = AF_INET;
+    socket_address.sin_addr = host_addr;
+    return getnameinfo((struct sockaddr *)&socket_address, sizeof(socket_address), dest, size, NULL, 0, NI_NAMEREQD);
 }

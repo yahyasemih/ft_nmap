@@ -3,6 +3,7 @@
 //
 
 #include "printing_utils.h"
+#include "net_utils.h"
 
 static const char  *port_state_to_str(port_state_t state) {
     if (state == OPEN_PORT) {
@@ -87,7 +88,12 @@ static void    print_scans(scan_type_t scans) {
 
 void    print_results(nmap_context_t *ctx) {
     for (int i = 0; i < ctx->ips_number; ++i) {
-        printf("IP address: %s\n", inet_ntoa(ctx->ips[i]));
+        char hostname[NI_MAXHOST + 1];
+        if (dns_resolve(ctx->ips[i], hostname, NI_MAXHOST)) {
+            printf("IP address: %s\n", inet_ntoa(ctx->ips[i]));
+        } else {
+            printf("IP address: %s (%s)\n", inet_ntoa(ctx->ips[i]), hostname);
+        }
         print_ports(ctx->scan_result + i, "Open", ctx->scan_result->open_ports, 1);
         print_ports(ctx->scan_result + i, "Closed/Filtered/Unfiltered",
                     ctx->ports_number - ctx->scan_result->open_ports, 0);
