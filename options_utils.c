@@ -175,8 +175,9 @@ static scan_type_t get_scans(char *arg) {
 	return scans;
 }
 
-static void    sort_ports(nmap_context_t *ctx) {
+static void    clean_ports(nmap_context_t *ctx) {
     uint16_t    tmp;
+
     for (int i = 0; i < ctx->ports_number; ++i) {
         for (int j = i + 1; j < ctx->ports_number; ++j) {
             if (ctx->ports[j] > ctx->ports[i]) {
@@ -186,7 +187,29 @@ static void    sort_ports(nmap_context_t *ctx) {
             }
         }
     }
-    // TODO: remove duplicated ports
+    int duplicated = 0;
+    uint16_t    *new_ports;
+    for (int i = 1; i < ctx->ports_number; ++i) {
+        if (ctx->ports[i] == ctx->ports[i - 1]) {
+            ++duplicated;
+        }
+    }
+    if (duplicated == 0) {
+        return;
+    }
+    new_ports = (uint16_t *)malloc(sizeof(uint16_t) * (ctx->ports_number - duplicated));
+    if (new_ports != NULL) {
+        new_ports[0] = ctx->ports[0];
+        int j = 1;
+        for (int i = 1; i < ctx->ports_number; ++i) {
+            if (ctx->ports[i] != ctx->ports[i - 1]) {
+                new_ports[j++] = ctx->ports[i];
+            }
+        }
+        free(ctx->ports);
+        ctx->ports = new_ports;
+        ctx->ports_number -= duplicated;
+    }
 }
 
 int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
@@ -234,7 +257,17 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
     if (ctx->scan_types == SCAN_EMPTY) {
         ctx->scan_types = SCAN_ALL;
     }
-    sort_ports(ctx);
+    if (ctx->ports_number == 0) {
+        for (uint16_t port = 1; port <= 1024; ++port) {
+            ctx->ports = append_port((uint16_t)port, ctx->ports, ctx->ports_number++);
+        }
+    } else {
+        clean_ports(ctx);
+        if (ctx->ports_number > 1024) {
+            fprintf(stderr, "ft_nmap: number of ports should not exceed 1024\n");
+            return 1;
+        }
+    }
 	return 0;
 }
 
