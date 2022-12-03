@@ -13,6 +13,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,10 +37,10 @@ typedef enum scan_type_e {
 
 typedef enum port_state_e {
     NO_RESULT       = 0x00,
-    OPEN_PORT       = 0x01,
+    CLOSED_PORT     = 0x01,
     UNFILTERED_PORT = 0x02,
     FILTERED_PORT   = 0x04,
-    CLOSED_PORT     = 0x08
+    OPEN_PORT       = 0x08
 }   port_state_t;
 
 typedef struct scan_result_entry_s {
@@ -61,7 +62,8 @@ typedef struct nmap_context_s {
 	struct in_addr	*ips;
 	uint16_t		ports_number;
 	uint16_t		ips_number;
-    int             socket_fd;
+    int             tcp_socket_fd;
+    int             udp_socket_fd;
     scan_result_t   *scan_result;
 }	nmap_context_t;
 
@@ -69,6 +71,11 @@ typedef struct tcpip_packet_s {
     struct iphdr    ip_hdr;
     struct tcphdr   tcp_hdr;
 }   tcpip_packet_t;
+
+typedef struct udpip_packet_s {
+    struct iphdr    ip_hdr;
+    struct udphdr   udp_hdr;
+}   udpip_packet_t;
 
 typedef struct thread_context_s {
     nmap_context_t  *nmap_ctx;
