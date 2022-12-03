@@ -3,6 +3,7 @@
 //
 
 #include "thread_utils.h"
+#include "scan_utils.h"
 
 void    *thread_routine(void *arg) {
     thread_context_t *ctx = (thread_context_t *)arg;

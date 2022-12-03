@@ -87,6 +87,4 @@ typedef struct thread_context_s {
 
 void    clear_nmap_context(nmap_context_t *ctx);
 
-void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_idx, int ports_number);
-
 #endif //FT_NMAP_HPP

@@ -3,7 +3,7 @@ CC=cc
 CFLAGS=-Wall -Wextra -Werror -g
 RM= rm -rf
 
-SRC=main.c thread_utils.c printing_utils.c options_utils.c
+SRC=main.c thread_utils.c printing_utils.c options_utils.c net_utils.c scan_utils.c
 OBJ=$(patsubst %.c,%.o,$(SRC))
 DEP=$(patsubst %.c,%.d,$(SRC))
 
