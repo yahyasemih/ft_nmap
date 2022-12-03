@@ -175,6 +175,20 @@ static scan_type_t get_scans(char *arg) {
 	return scans;
 }
 
+static void    sort_ports(nmap_context_t *ctx) {
+    uint16_t    tmp;
+    for (int i = 0; i < ctx->ports_number; ++i) {
+        for (int j = i + 1; j < ctx->ports_number; ++j) {
+            if (ctx->ports[j] > ctx->ports[i]) {
+                tmp = ctx->ports[i];
+                ctx->ports[i] = ctx->ports[j];
+                ctx->ports[j] = tmp;
+            }
+        }
+    }
+    // TODO: remove duplicated ports
+}
+
 int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
 	for (int i = 1; i < argc; ++i) {
 		if (!is_valid_option(argv[i])) {
@@ -220,6 +234,7 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
     if (ctx->scan_types == SCAN_EMPTY) {
         ctx->scan_types = SCAN_ALL;
     }
+    sort_ports(ctx);
 	return 0;
 }
 

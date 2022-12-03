@@ -259,7 +259,7 @@ port_state_t    do_tcp_scan(int socket_fd, struct in_addr host_addr, uint16_t po
                 return FILTERED_PORT;
             }
         } else {
-            return FILTERED_PORT;
+            return OPEN_PORT;
         }
     }
     return NO_RESULT;
@@ -285,13 +285,15 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                             ctx->udp_socket_fd, ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
                 }
                 // TODO: change how to decide on conclusion
-                if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
+                if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] == OPEN_PORT) {
+                    ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion = OPEN_PORT;
+                } else if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
                         ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion) {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion =
                             ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k];
                 }
             }
-            if (ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion & OPEN_PORT) {
+            if (ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion == OPEN_PORT) {
                 ctx->scan_result[ip_idx + i].open_ports++;
             }
         }
@@ -334,7 +336,6 @@ int	main(int argc, char **argv) {
     print_configurations(&ctx);
     printf("Scanning..\n");
     gettimeofday(&start_tv, NULL);
-    // TODO: sort and remove duplicated ports
     if (ctx.threads_number == 0) {
         perform_scans(&ctx, 0, ctx.ips_number, 0, ctx.ports_number);
     } else {

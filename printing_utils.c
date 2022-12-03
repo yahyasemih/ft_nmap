@@ -46,19 +46,19 @@ static int    result_to_str(port_state_t results[6]) {
         }
         res += printf(" %s(%s)", scan_type_to_str(1 << i), port_state_to_str(results[i]));
     }
-    return res % 101;
+    return res % 121;
 }
 
 static void    print_ports(scan_result_t *result, const char *type, int number, int only_open) {
     if (number > 0) {
         printf("%s ports:\n", type);
-        printf("%-10s %-30s %-100s %-20s\n", "Port", "Service Name (if applicable)", "Results", "Conclusion");
-        for (int i = 0; i < 160; ++i) {
+        printf("%-10s %-30s %-120s %-20s\n", "Port", "Service Name (if applicable)", "Results", "Conclusion");
+        for (int i = 0; i < 180; ++i) {
             printf("-");
         }
         printf("\n");
         for (int i = 0; i < result->total_ports; ++i) {
-            if (only_open && result->entries[i].conclusion != OPEN_PORT) {
+            if ((only_open && result->entries[i].conclusion != OPEN_PORT) || (!only_open && result->entries[i].conclusion == OPEN_PORT)) {
                 continue;
             }
             struct servent *s = getservbyport(htons(result->entries[i].port), NULL);
@@ -69,7 +69,7 @@ static void    print_ports(scan_result_t *result, const char *type, int number, 
                 name = s->s_name;
             }
             printf("%-10d %-30s", result->entries[i].port, name);
-            printf(" %*s", 100 - result_to_str(result->entries[i].results), "");
+            printf(" %*s", 120 - result_to_str(result->entries[i].results), "");
             printf(" %-20s\n", port_state_to_str(result->entries[i].conclusion));
         }
     }
