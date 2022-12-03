@@ -136,6 +136,7 @@ int read_ips_from_file(char *filename, nmap_context_t *ctx) {
 		if (i != 0) {
 			ctx->ips = append_ip(address, ctx->ips, ctx->ips_number++);
 			if (ctx->ips == NULL) {
+                fclose(f);
 				return 1;
 			}
 		}
@@ -399,17 +400,19 @@ int do_tcp_scan(int socket_fd, struct in_addr host_addr, uint16_t port, scan_typ
                 return OPEN_PORT;
             } else if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
                 return CLOSED_PORT;
+            } else {
+                return FILTERED_PORT;
             }
         } else {
-            return NO_RESULT;
+            return FILTERED_PORT;
         }
     }
     return NO_RESULT;
 }
 
 void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_idx, int ports_number) {
-    for (int i = 0; i < ips_number; ++i) {
-        for (int j = 0; j < ports_number; ++j) {
+    for (int i = 0; i < ips_number && ip_idx + i < ctx->ips_number; ++i) {
+        for (int j = 0; j < ports_number && port_idx + j < ctx->ports_number; ++j) {
             ctx->scan_result[ip_idx + i].entries[port_idx + j].port = ctx->ports[port_idx + j];
             ctx->scan_result[ip_idx + i].total_ports = ctx->ports_number;
             ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion = NO_RESULT;
@@ -501,7 +504,7 @@ int    result_to_str(port_state_t results[6]) {
     return res % 101;
 }
 
-void    print_ports(scan_result_t *result, const char *type, int number, port_state_t state) {
+void    print_ports(scan_result_t *result, const char *type, int number, int only_open) {
     if (number > 0) {
         printf("%s ports:\n", type);
         printf("%-10s %-30s %-100s %-20s\n", "Port", "Service Name (if applicable)", "Results", "Conclusion");
@@ -510,10 +513,10 @@ void    print_ports(scan_result_t *result, const char *type, int number, port_st
         }
         printf("\n");
         for (int i = 0; i < result->total_ports; ++i) {
-            if (!(result->entries[i].conclusion & state)) {
+            if (only_open && result->entries[i].conclusion != OPEN_PORT) {
                 continue;
             }
-            struct servent *s = getservbyport(result->entries[i].port, NULL);
+            struct servent *s = getservbyport(htons(result->entries[i].port), NULL);
             char *name;
             if (s == NULL) {
                 name = "Unassigned";
@@ -531,9 +534,9 @@ void    print_ports(scan_result_t *result, const char *type, int number, port_st
 void    print_results(nmap_context_t *ctx) {
     for (int i = 0; i < ctx->ips_number; ++i) {
         printf("IP address: %s\n", inet_ntoa(ctx->ips[i]));
-        print_ports(ctx->scan_result + i, "Open", ctx->scan_result->open_ports, OPEN_PORT);
+        print_ports(ctx->scan_result + i, "Open", ctx->scan_result->open_ports, 1);
         print_ports(ctx->scan_result + i, "Closed/Filtered/Unfiltered",
-                    ctx->ports_number - ctx->scan_result->open_ports, CLOSED_PORT | FILTERED_PORT | UNFILTERED_PORT);
+                    ctx->ports_number - ctx->scan_result->open_ports, 0);
     }
 }
 
@@ -552,6 +555,51 @@ void print_configurations(nmap_context_t *ctx) {
     printf("Scans to be performed :");
     print_scans(ctx->scan_types);
     printf("No of threads : %d\n", ctx->threads_number);
+}
+
+void    *thread_routine(void *arg) {
+    thread_context_t *ctx = (thread_context_t *)arg;
+    perform_scans(ctx->nmap_ctx, ctx->ip_index, ctx->ips_number, ctx->port_index, ctx->ports_number);
+    return NULL;
+}
+
+int    use_threads(nmap_context_t *nmap_ctx) {
+    pthread_t           threads[nmap_ctx->threads_number];
+    int         ips_by_thread = nmap_ctx->ips_number / nmap_ctx->threads_number;
+    int         ports_by_thread = nmap_ctx->ports_number / nmap_ctx->threads_number;
+    thread_context_t    *thread_ctx = malloc(sizeof(thread_context_t) * nmap_ctx->threads_number);
+
+    if (thread_ctx == NULL) {
+        return 1;
+    }
+    if (nmap_ctx->ips_number % nmap_ctx->threads_number != 0) {
+        ips_by_thread++;
+    }
+    if (nmap_ctx->ports_number % nmap_ctx->threads_number != 0) {
+        ports_by_thread++;
+    }
+
+    for (u_int8_t i = 0; i < nmap_ctx->threads_number; ++i) {
+        thread_ctx[i].nmap_ctx = nmap_ctx;
+        thread_ctx[i].ip_index = 0;
+        thread_ctx[i].ips_number = nmap_ctx->ips_number;
+        thread_ctx[i].port_index = i * ports_by_thread;
+        thread_ctx[i].ports_number = ports_by_thread;
+        if (pthread_create(threads + i, NULL, thread_routine, thread_ctx + i)) {
+            perror("pthread_create");
+            free(thread_ctx);
+            return 1;
+        }
+    }
+    for (u_int8_t i = 0; i < nmap_ctx->threads_number; ++i) {
+        if (pthread_join(threads[i], NULL)) {
+            perror("pthread_join");
+            free(thread_ctx);
+            return 1;
+        }
+    }
+    free(thread_ctx);
+    return 0;
 }
 
 int	main(int argc, char **argv) {
@@ -577,7 +625,10 @@ int	main(int argc, char **argv) {
     if (ctx.threads_number == 0) {
         perform_scans(&ctx, 0, ctx.ips_number, 0, ctx.ports_number);
     } else {
-        // TODO: add threads
+        if (use_threads(&ctx)) {
+            clear_nmap_context(&ctx);
+            return 1;
+        }
     }
     gettimeofday(&end_tv, NULL);
     long u_secs = end_tv.tv_usec - start_tv.tv_usec;

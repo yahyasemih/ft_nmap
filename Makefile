@@ -10,7 +10,7 @@ DEP=$(patsubst %.c,%.d,$(SRC))
 all: $(NAME)
 
 $(NAME): $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) -o $(NAME)
+	$(CC) $(CFLAGS) $(OBJ) -pthread -o $(NAME)
 
 %.c:
 

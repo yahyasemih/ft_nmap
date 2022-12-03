@@ -13,6 +13,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,5 +69,13 @@ typedef struct tcpip_packet_s {
     struct iphdr    ip_hdr;
     struct tcphdr   tcp_hdr;
 }   tcpip_packet_t;
+
+typedef struct thread_context_s {
+    nmap_context_t  *nmap_ctx;
+    int             ip_index;
+    int             ips_number;
+    int             port_index;
+    int             ports_number;
+}   thread_context_t;
 
 #endif //FT_NMAP_HPP
