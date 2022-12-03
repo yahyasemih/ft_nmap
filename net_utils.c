@@ -151,11 +151,10 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type
     return packet;
 }
 
-udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port, scan_type_t scan_type) {
+udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port) {
     udpip_packet_t  packet;
     struct timeval  tv;
 
-    (void)scan_type;
     bzero(&packet, sizeof(packet));
     gettimeofday(&tv, NULL);
     inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);

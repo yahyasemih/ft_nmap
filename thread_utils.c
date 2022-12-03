@@ -13,15 +13,11 @@ void    *thread_routine(void *arg) {
 
 int    use_threads(nmap_context_t *nmap_ctx) {
     pthread_t           threads[nmap_ctx->threads_number];
-    int         ips_by_thread = nmap_ctx->ips_number / nmap_ctx->threads_number;
-    int         ports_by_thread = nmap_ctx->ports_number / nmap_ctx->threads_number;
+    int                 ports_by_thread = nmap_ctx->ports_number / nmap_ctx->threads_number;
     thread_context_t    *thread_ctx = malloc(sizeof(thread_context_t) * nmap_ctx->threads_number);
 
     if (thread_ctx == NULL) {
         return 1;
-    }
-    if (nmap_ctx->ips_number % nmap_ctx->threads_number != 0) {
-        ips_by_thread++;
     }
     if (nmap_ctx->ports_number % nmap_ctx->threads_number != 0) {
         ports_by_thread++;

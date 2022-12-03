@@ -5,11 +5,11 @@
 #include "scan_utils.h"
 #include "net_utils.h"
 
-static port_state_t    do_udp_scan(int socket_fd, struct in_addr host_addr, uint16_t port, scan_type_t scan_type) {
+static port_state_t do_udp_scan(int socket_fd, struct in_addr host_addr, uint16_t port) {
     struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
 
-    udpip_packet_t packet = create_udp_packet(dst_addr.sin_addr, port, scan_type);
+    udpip_packet_t packet = create_udp_packet(dst_addr.sin_addr, port);
     ssize_t sent = sendto(socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr, dst_addr_len);
     if (sent < 0) {
         perror("sendto");
@@ -90,7 +90,7 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                             ctx->tcp_socket_fd, ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
                 } else {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_udp_scan(
-                            ctx->udp_socket_fd, ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
+                            ctx->udp_socket_fd, ctx->ips[ip_idx + i], ctx->ports[port_idx + j]);
                 }
                 // TODO: change how to decide on conclusion
                 if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] == OPEN_PORT) {
