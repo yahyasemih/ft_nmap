@@ -112,10 +112,11 @@ static int read_ips_from_file(char *filename, nmap_context_t *ctx) {
         fprintf(stderr, "ft_nmap: invalid file: `%s'\n", filename);
 		return 1;
 	}
-	while (!feof(f)) {
+    int read_bytes = 1;
+	while (read_bytes != 0) {
 		int i = 0;
 		char c;
-		while (fread(&c, 1, 1, f) != 0 && c != '\n') {
+		while ((read_bytes = fread(&c, 1, 1, f)) != 0 && c != '\n') {
 			address[i++] = c;
 		}
 		address[i] = '\0';
