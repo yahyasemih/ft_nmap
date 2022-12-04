@@ -9,8 +9,9 @@
 static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t port) {
     struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
+    char    buff[100];
 
-    udpip_packet_t packet = create_udp_packet(dst_addr.sin_addr, port, ctx);
+    udpip_packet_t packet = create_udp_packet(host_addr, port, ctx);
     ssize_t sent = sendto(ctx->udp_socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr,
             dst_addr_len);
     if (ctx->packet_trace) {
@@ -21,11 +22,11 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-	ssize_t received = recvfrom(ctx->udp_socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr,
-            &dst_addr_len);
+	ssize_t received = recvfrom(ctx->udp_socket_fd, buff, 100, 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
     if (received < 0) {
         return OPEN_FILTERED_PORT;
     }
+    ft_memcpy(&packet, buff, sizeof(packet));
     if (ctx->packet_trace) {
         printf("RCVD ");
         udp_packet_trace(&packet);
@@ -36,8 +37,9 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
 static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t port, scan_type_t scan_type) {
 	struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
+    char    buff[100];
 
-    tcpip_packet_t packet = create_tcp_packet(dst_addr.sin_addr, port, scan_type, ctx);
+    tcpip_packet_t packet = create_tcp_packet(host_addr, port, scan_type, ctx);
 	ssize_t sent = sendto(ctx->tcp_socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr,
             dst_addr_len);
     if (ctx->packet_trace) {
@@ -48,11 +50,11 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-	ssize_t received = recvfrom(ctx->tcp_socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr,
-            &dst_addr_len);
+	ssize_t received = recvfrom(ctx->tcp_socket_fd, buff, 100, 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
     if (received < 0) {
         return FILTERED_PORT;
     }
+    ft_memcpy(&packet, buff, sizeof(packet));
     if (ctx->packet_trace) {
         printf("RCVD ");
         tcp_packet_trace(&packet);
