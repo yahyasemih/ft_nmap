@@ -66,8 +66,8 @@ typedef struct nmap_context_s {
     int             udp_socket_fd;
     scan_result_t   *scan_result;
     char            *interface;
-    int             ttl;
-    int             source_port;
+    uint8_t         ttl;
+    uint16_t        source_port;
     int             packet_trace;
 }	nmap_context_t;
 

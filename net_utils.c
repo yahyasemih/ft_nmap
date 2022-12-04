@@ -5,6 +5,13 @@
 #include "net_utils.h"
 #include "utilities.h"
 
+int dns_resolve(struct in_addr host_addr, char *dest, int size) {
+    struct sockaddr_in socket_address;
+    socket_address.sin_family = AF_INET;
+    socket_address.sin_addr = host_addr;
+    return getnameinfo((struct sockaddr *)&socket_address, sizeof(socket_address), dest, size, NULL, 0, NI_NAMEREQD);
+}
+
 static void ft_ip_checksum(u_short *addr) {
     struct iphdr *ip_hdr = (struct iphdr*)(addr);
 	int n_left = sizeof(struct iphdr);
@@ -124,7 +131,7 @@ static uint8_t scan_type_to_th_flags(scan_type_t scan_type) {
     }
 }
 
-tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type_t scan_type) {
+tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type_t scan_type, nmap_context_t *ctx) {
     tcpip_packet_t  packet;
     struct timeval tv;
 
@@ -138,7 +145,7 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type
     packet.ip_hdr.tot_len = htons(sizeof(tcpip_packet_t));
     packet.ip_hdr.id = htons(tv.tv_usec & 0xFFFF);
     packet.ip_hdr.frag_off = 0;
-    packet.ip_hdr.ttl = 255;
+    packet.ip_hdr.ttl = ctx->ttl;
     packet.ip_hdr.protocol = IPPROTO_TCP;
     ft_ip_checksum((u_short *)&packet.ip_hdr);
     packet.tcp_hdr.th_flags = scan_type_to_th_flags(scan_type);
@@ -146,12 +153,13 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type
     packet.tcp_hdr.doff = 5;
     packet.tcp_hdr.window = htons(1024);
     packet.tcp_hdr.th_dport = htons(port);
+    packet.tcp_hdr.th_sport = htons(ctx->source_port);
     ft_tcp_checksum(&packet.ip_hdr, (u_short *)&packet.tcp_hdr);
 
     return packet;
 }
 
-udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port) {
+udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port, nmap_context_t *ctx) {
     udpip_packet_t  packet;
     struct timeval  tv;
 
@@ -165,9 +173,10 @@ udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port) {
     packet.ip_hdr.tot_len = htons(sizeof(udpip_packet_t));
     packet.ip_hdr.id = htons(tv.tv_usec & 0xFFFF);
     packet.ip_hdr.frag_off = 0;
-    packet.ip_hdr.ttl = 255;
+    packet.ip_hdr.ttl = ctx->ttl;
     packet.ip_hdr.protocol = IPPROTO_UDP;
     ft_ip_checksum((u_short *)&packet.ip_hdr);
+    packet.udp_hdr.source = htons(ctx->source_port);
     packet.udp_hdr.dest = htons(port);
     packet.udp_hdr.len = htons(sizeof(struct udphdr));
     ft_udp_checksum(&packet.ip_hdr, (u_short *)&packet.udp_hdr);
@@ -175,9 +184,39 @@ udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port) {
     return packet;
 }
 
-int dns_resolve(struct in_addr host_addr, char *dest, int size) {
-    struct sockaddr_in socket_address;
-    socket_address.sin_family = AF_INET;
-    socket_address.sin_addr = host_addr;
-    return getnameinfo((struct sockaddr *)&socket_address, sizeof(socket_address), dest, size, NULL, 0, NI_NAMEREQD);
+void    tcp_packet_trace(tcpip_packet_t *packet) {
+    struct in_addr src = {packet->ip_hdr.saddr};
+    struct in_addr dst = {packet->ip_hdr.daddr};
+    printf("TCP %s:%d > %s:%d ", inet_ntoa(src), ntohs(packet->tcp_hdr.th_sport), inet_ntoa(dst),
+            ntohs(packet->tcp_hdr.th_dport));
+    if (packet->tcp_hdr.th_flags) {
+        if (packet->tcp_hdr.urg) {
+            printf("U");
+        }
+        if (packet->tcp_hdr.ack) {
+            printf("A");
+        }
+        if (packet->tcp_hdr.psh) {
+            printf("P");
+        }
+        if (packet->tcp_hdr.rst) {
+            printf("R");
+        }
+        if (packet->tcp_hdr.syn) {
+            printf("S");
+        }
+        if (packet->tcp_hdr.fin) {
+            printf("F");
+        }
+    }
+    printf(" ttl=%d id=%d iplen %d ", packet->ip_hdr.ttl, ntohs(packet->ip_hdr.id), ntohs(packet->ip_hdr.tot_len));
+    printf(" seq=%d win=%d\n", ntohs(packet->tcp_hdr.seq), ntohs(packet->tcp_hdr.window));
+}
+
+void    udp_packet_trace(udpip_packet_t *packet) {
+    struct in_addr src = {packet->ip_hdr.saddr};
+    struct in_addr dst = {packet->ip_hdr.daddr};
+    printf("UDP %s:%d > %s:%d ", inet_ntoa(src), ntohs(packet->udp_hdr.uh_sport), inet_ntoa(dst),
+            ntohs(packet->udp_hdr.uh_dport));
+    printf("ttl=%d id=%d iplen %d\n", packet->ip_hdr.ttl, ntohs(packet->ip_hdr.id), ntohs(packet->ip_hdr.tot_len));
 }

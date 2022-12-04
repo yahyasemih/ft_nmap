@@ -155,17 +155,17 @@ static scan_type_t get_scans(char *arg) {
 		while (*end_ptr != '\0' && *end_ptr != ',') {
 			end_ptr++;
 		}
-		if (ft_strncmp(start_ptr, "NULL", end_ptr - start_ptr) == 0) {
+		if (ft_strncmp(start_ptr, "NULL", 4) == 0) {
 			scans |= SCAN_NULL;
-		} else if (ft_strncmp(start_ptr, "SYN", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "SYN", 3) == 0) {
 			scans |= SCAN_SYN;
-		} else if (ft_strncmp(start_ptr, "ACK", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "ACK", 3) == 0) {
 			scans |= SCAN_ACK;
-		} else if (ft_strncmp(start_ptr, "FIN", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "FIN", 3) == 0) {
 			scans |= SCAN_FIN;
-		} else if (ft_strncmp(start_ptr, "XMAS", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "XMAS", 4) == 0) {
 			scans |= SCAN_XMAS;
-		} else if (ft_strncmp(start_ptr, "UDP", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "UDP", 3) == 0) {
 			scans |= SCAN_UDP;
 		} else {
 			scans = INVALID_SCAN_TYPE;
@@ -251,21 +251,23 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
                 return 1;
             }
         } else if (ft_strcmp(argv[i], "--source-port") == 0) {
-            ctx->source_port = ft_atoi(argv[++i]);
-            if (ctx->source_port < 0 || ctx->source_port > 65535) {
+            int port = ft_atoi(argv[++i]);
+            if (port < 0 || port > 65535) {
                 fprintf(stderr, "ft_nmap: invalid source port argument: %s\n", argv[i]);
                 return 1;
             }
+            ctx->source_port = (uint16_t)port;
         } else if (ft_strcmp(argv[i], "--interface") == 0) {
 			ctx->interface = argv[++i];
         } else if (ft_strcmp(argv[i], "--packet-trace") == 0) {
 			ctx->packet_trace = 1;
         } else if (ft_strcmp(argv[i], "--ttl") == 0) {
-			ctx->ttl = ft_atoi(argv[++i]);
-            if (ctx->ttl < 0 || ctx->ttl > 255) {
+            int ttl = ft_atoi(argv[++i]);
+            if (ttl < 0 || ttl > 255) {
                 fprintf(stderr, "ft_nmap: ttl option must be a number between 0 and 255 (inclusive)\n");
                 return 1;
             }
+			ctx->ttl = (uint8_t)ttl;
         } else if (ft_strcmp(argv[i], "--help") == 0) {
 			display_help(argv[0]);
             clear_nmap_context(ctx);
@@ -309,7 +311,7 @@ void display_help(char *path) {
 	printf("--speedup\t[250 max] number of parallel threads to use\n");
 	printf("--scan\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
 	printf("--interface\tUse specified interface\n");
-	printf("--ttl\t\tSet IP time-to-live field\n"); // TODO: only parsed, should be used
-	printf("--source-port\tUse given port number\n"); // TODO: only parsed, should be used
-	printf("--packet-trace\tShow all packets sent and received\n"); // TODO: only parsed, should be used
+	printf("--ttl\t\tSet IP time-to-live field\n");
+	printf("--source-port\tUse given port number\n");
+	printf("--packet-trace\tShow all packets sent and received\n");
 }
