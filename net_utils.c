@@ -185,10 +185,10 @@ udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port, nmap_cont
 }
 
 void    tcp_packet_trace(tcpip_packet_t *packet) {
-    struct in_addr src = {packet->ip_hdr.saddr};
-    struct in_addr dst = {packet->ip_hdr.daddr};
-    printf("TCP %s:%d > %s:%d ", inet_ntoa(src), ntohs(packet->tcp_hdr.th_sport), inet_ntoa(dst),
-            ntohs(packet->tcp_hdr.th_dport));
+    char *src = (char *)&packet->ip_hdr.saddr;
+    char *dst = (char *)&packet->ip_hdr.daddr;
+    printf("TCP %hhu.%hhu.%hhu.%hhu:%hu > %hhu.%hhu.%hhu.%hhu:%hu ", src[0], src[1], src[2], src[3],
+            ntohs(packet->tcp_hdr.th_sport), dst[0], dst[1], dst[2], dst[3], ntohs(packet->tcp_hdr.th_dport));
     if (packet->tcp_hdr.th_flags) {
         if (packet->tcp_hdr.urg) {
             printf("U");
@@ -214,9 +214,9 @@ void    tcp_packet_trace(tcpip_packet_t *packet) {
 }
 
 void    udp_packet_trace(udpip_packet_t *packet) {
-    struct in_addr src = {packet->ip_hdr.saddr};
-    struct in_addr dst = {packet->ip_hdr.daddr};
-    printf("UDP %s:%d > %s:%d ", inet_ntoa(src), ntohs(packet->udp_hdr.uh_sport), inet_ntoa(dst),
-            ntohs(packet->udp_hdr.uh_dport));
+    char *src = (char *)&packet->ip_hdr.saddr;
+    char *dst = (char *)&packet->ip_hdr.daddr;
+    printf("UDP %hhu.%hhu.%hhu.%hhu:%hu > %hhu.%hhu.%hhu.%hhu:%hu ", src[0], src[1], src[2], src[3],
+            ntohs(packet->udp_hdr.uh_sport), dst[0], dst[1], dst[2], dst[3], ntohs(packet->udp_hdr.uh_dport));
     printf("ttl=%d id=%d iplen %d\n", packet->ip_hdr.ttl, ntohs(packet->ip_hdr.id), ntohs(packet->ip_hdr.tot_len));
 }
