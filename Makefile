@@ -3,14 +3,14 @@ CC=cc
 CFLAGS=-Wall -Wextra -Werror
 RM= rm -rf
 
-SRC=ft_nmap.c thread_utils.c printing_utils.c options_utils.c net_utils.c scan_utils.c utilities.c
+SRC=ft_nmap.c thread_utils.c printing_utils.c options_utils.c net_utils.c scan_utils.c utilities.c pcap_utils.c
 OBJ=$(patsubst %.c,%.o,$(SRC))
 DEP=$(patsubst %.c,%.d,$(SRC))
 
 all: $(NAME)
 
 $(NAME): $(OBJ) Makefile
-	$(CC) $(CFLAGS) $(OBJ) -pthread -o $(NAME)
+	$(CC) $(CFLAGS) $(OBJ) -pthread -lpcap -o $(NAME)
 
 %.c:
 

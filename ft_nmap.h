@@ -10,12 +10,16 @@
 #include <errno.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <pcap.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,6 +77,10 @@ typedef struct nmap_context_s {
     uint16_t        source_port;
     int             packet_trace;
     struct ifaddrs  *if_addr;
+    pcap_t          *pcap_handle;
+    bpf_u_int32     subnet_mask;
+    bpf_u_int32     ip;
+    pthread_mutex_t mutex;
 }	nmap_context_t;
 
 typedef struct tcpip_packet_s {

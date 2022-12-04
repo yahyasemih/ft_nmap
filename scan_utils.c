@@ -4,12 +4,14 @@
 
 #include "scan_utils.h"
 #include "net_utils.h"
+#include "pcap_utils.h"
 #include "utilities.h"
 
 static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t port) {
     struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
-    char    buff[100];
+    char    filter_exp[100] = {0};
+    struct bpf_program filter;
 
     udpip_packet_t packet = create_udp_packet(host_addr, port, ctx);
     ssize_t sent = sendto(ctx->udp_socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr,
@@ -22,22 +24,47 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-	ssize_t received = recvfrom(ctx->udp_socket_fd, buff, 100, 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
-    if (received < 0) {
-        return OPEN_FILTERED_PORT;
+    sprintf(filter_exp, "src %s", inet_ntoa(host_addr));
+    if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
+        fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
+        return NO_RESULT;
     }
-    ft_memcpy(&packet, buff, sizeof(packet));
-    if (ctx->packet_trace) {
+    if (pcap_setfilter(ctx->pcap_handle, &filter) == PCAP_ERROR) {
+        fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(ctx->pcap_handle));
+        pcap_freecode(&filter);
+        return NO_RESULT;
+    }
+    alarm(2); // TODO: fix clearing alarm
+    if (pcap_dispatch(ctx->pcap_handle, 1, pcap_udp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
+        fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
+        pcap_freecode(&filter);
+        return NO_RESULT;
+    }
+    alarm(0);
+    pcap_freecode(&filter);
+    if (ctx->packet_trace && (packet.ip_hdr.protocol == IPPROTO_UDP || packet.ip_hdr.protocol == IPPROTO_ICMP)) {
         printf("RCVD ");
         udp_packet_trace(&packet);
     }
-    return CLOSED_PORT;
+    if (packet.ip_hdr.protocol == IPPROTO_UDP) {
+        return OPEN_PORT;
+    } else if (packet.ip_hdr.protocol == IPPROTO_ICMP) {
+        struct icmphdr *icmp_hdr = (struct icmphdr *)&packet.udp_hdr;
+        if (icmp_hdr->type == 3 && icmp_hdr->code == 3) {
+            return CLOSED_PORT;
+        } else {
+            return FILTERED_PORT;
+        }
+    } else {
+        return OPEN_FILTERED_PORT;
+    }
 }
 
 static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t port, scan_type_t scan_type) {
 	struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
-    char    buff[100];
+    char    filter_exp[100] = {0};
+    struct bpf_program filter;
 
     tcpip_packet_t packet = create_tcp_packet(host_addr, port, scan_type, ctx);
 	ssize_t sent = sendto(ctx->tcp_socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr,
@@ -50,12 +77,25 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-	ssize_t received = recvfrom(ctx->tcp_socket_fd, buff, 100, 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
-    if (received < 0) {
-        return FILTERED_PORT;
+    sprintf(filter_exp, "src %s and tcp and src port %u", inet_ntoa(host_addr), port);
+    if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
+        fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
+        return NO_RESULT;
     }
-    ft_memcpy(&packet, buff, sizeof(packet));
-    if (ctx->packet_trace) {
+    if (pcap_setfilter(ctx->pcap_handle, &filter) == PCAP_ERROR) {
+        fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(ctx->pcap_handle));
+        pcap_freecode(&filter);
+        return NO_RESULT;
+    }
+    alarm(2); // TODO: fix clearing alarm
+    if (pcap_dispatch(ctx->pcap_handle, 1, pcap_tcp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
+        fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
+        pcap_freecode(&filter);
+        return NO_RESULT;
+    }
+    alarm(0);
+    pcap_freecode(&filter);
+    if (ctx->packet_trace && packet.ip_hdr.protocol == IPPROTO_TCP) {
         printf("RCVD ");
         tcp_packet_trace(&packet);
     }
@@ -70,7 +110,7 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
             return OPEN_FILTERED_PORT;
         }
     } else if (scan_type == SCAN_ACK) {
-        if (packet.ip_hdr.saddr == host_addr.s_addr) {
+        if (packet.ip_hdr.protocol == IPPROTO_TCP) {
             if (packet.tcp_hdr.th_flags == TH_RST) {
                 return UNFILTERED_PORT;
             } else {
@@ -80,7 +120,7 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
             return FILTERED_PORT;
         }
     } else if (scan_type == SCAN_SYN) {
-        if (packet.ip_hdr.saddr == host_addr.s_addr) {
+        if (packet.ip_hdr.protocol == IPPROTO_TCP) {
             if (packet.tcp_hdr.th_flags == (TH_ACK | TH_SYN)) {
                 return OPEN_PORT;
             } else if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
@@ -107,6 +147,7 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = NO_RESULT;
                     continue;
                 }
+                pthread_mutex_lock(&ctx->mutex);
                 if (scan_type == SCAN_UDP) {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_udp_scan(ctx,
                             ctx->ips[ip_idx + i], ctx->ports[port_idx + j]);
@@ -114,6 +155,7 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_tcp_scan(ctx,
                             ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
                 }
+                pthread_mutex_unlock(&ctx->mutex);
                 if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
                         ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion) {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion =

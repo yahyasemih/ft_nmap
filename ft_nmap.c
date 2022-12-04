@@ -5,6 +5,7 @@
 #include "ft_nmap.h"
 #include "net_utils.h"
 #include "options_utils.h"
+#include "pcap_utils.h"
 #include "printing_utils.h"
 #include "scan_utils.h"
 #include "thread_utils.h"
@@ -28,6 +29,9 @@ void clear_nmap_context(nmap_context_t *ctx) {
     }
     freeifaddrs(ctx->if_addr);
     ctx->if_addr = NULL;
+    pcap_close(ctx->pcap_handle);
+    ctx->pcap_handle = NULL;
+    pthread_mutex_destroy(&ctx->mutex);
 }
 
 int initialize_results(nmap_context_t *ctx) {
@@ -72,6 +76,14 @@ void    choose_default_interface(nmap_context_t *ctx) {
     ctx->if_addr = if_addr;
 }
 
+nmap_context_t  *signal_ctx;
+
+void    signal_handler(int sig) {
+    if (sig == SIGALRM && signal_ctx != NULL) {
+        pcap_breakloop(signal_ctx->pcap_handle);
+    }
+}
+
 int	main(int argc, char **argv) {
 	if (getuid() != 0) {
 		fprintf(stderr, "please run as root to be able to create raw sockets\n");
@@ -83,12 +95,20 @@ int	main(int argc, char **argv) {
 	}
     struct timeval start_tv;
     struct timeval end_tv;
-	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, -1, NULL, NULL, NULL, 255, 1337, 0, NULL};
+	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, -1, NULL, NULL, NULL, 255, 1337, 0, NULL, NULL, 0, 0, {}};
+    signal_ctx = &ctx;
     choose_default_interface(&ctx);
-	if (parse_options(argc, argv, &ctx) || initialize_socket(&ctx) || initialize_results(&ctx)) {
+	if (parse_options(argc, argv, &ctx) || initialize_socket(&ctx) || initialize_pcap(&ctx) || initialize_results(&ctx)) {
         clear_nmap_context(&ctx);
 		return 1;
 	}
+    if (pthread_mutex_init(&ctx.mutex, NULL)) {
+        fprintf(stderr, "ft_nmap: error when initilizing mutex: %s\n", strerror(errno));
+        return 1;
+    }
+    struct sigaction action;
+    action.sa_handler = signal_handler;
+    sigaction(SIGALRM, &action, NULL);
     print_configurations(&ctx);
     printf("Scanning..\n");
     gettimeofday(&start_tv, NULL);
