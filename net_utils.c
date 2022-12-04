@@ -137,7 +137,7 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type
 
     ft_bzero(&packet, sizeof(packet));
     gettimeofday(&tv, NULL);
-    inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);
+    packet.ip_hdr.saddr = ((struct sockaddr_in *)ctx->socket_addr)->sin_addr.s_addr;
     packet.ip_hdr.daddr = dst_ip.s_addr;
     packet.ip_hdr.version = 4;
     packet.ip_hdr.ihl = 5;
@@ -165,7 +165,7 @@ udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port, nmap_cont
 
     ft_bzero(&packet, sizeof(packet));
     gettimeofday(&tv, NULL);
-    inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);
+    packet.ip_hdr.saddr = ((struct sockaddr_in *)ctx->socket_addr)->sin_addr.s_addr;
     packet.ip_hdr.daddr = dst_ip.s_addr;
     packet.ip_hdr.version = 4;
     packet.ip_hdr.ihl = 5;

@@ -26,6 +26,8 @@ void clear_nmap_context(nmap_context_t *ctx) {
         free(ctx->scan_result);
         ctx->scan_result = NULL;
     }
+    freeifaddrs(ctx->if_addr);
+    ctx->if_addr = NULL;
 }
 
 int initialize_results(nmap_context_t *ctx) {
@@ -45,10 +47,32 @@ int initialize_results(nmap_context_t *ctx) {
     return 0;
 }
 
+void    choose_default_interface(nmap_context_t *ctx) {
+    struct ifaddrs *if_addr, *if_addr_it;
+
+    if (getifaddrs(&if_addr)) {
+        fprintf(stderr, "ft_nmap: error while getting available interface: %s\n", strerror(errno));
+        exit(1);
+    }
+    if_addr_it = if_addr;
+    while (if_addr_it) {
+        if (if_addr_it->ifa_addr != NULL && if_addr_it->ifa_addr->sa_family == AF_INET
+                && if_addr_it->ifa_name != NULL && ft_strcmp(if_addr_it->ifa_name, "lo") != 0) {
+            ctx->interface = if_addr_it->ifa_name;
+            ctx->socket_addr = if_addr_it->ifa_addr;
+            break;
+        }
+        if_addr_it = if_addr_it->ifa_next;
+    }
+    if (ctx->socket_addr == NULL || ctx->interface == NULL) {
+        fprintf(stderr, "ft_nmap: could not choose an interface to use\n");
+        freeifaddrs(if_addr);
+        exit(1);
+    }
+    ctx->if_addr = if_addr;
+}
+
 int	main(int argc, char **argv) {
-	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, -1, NULL, NULL, 255, 1337, 0};
-    struct timeval start_tv;
-    struct timeval end_tv;
 	if (getuid() != 0) {
 		fprintf(stderr, "please run as root to be able to create raw sockets\n");
 		return 1;
@@ -57,6 +81,10 @@ int	main(int argc, char **argv) {
 		display_help(argv[0]);
 		return 1;
 	}
+    struct timeval start_tv;
+    struct timeval end_tv;
+	nmap_context_t ctx = {0, 0, NULL, NULL, 0, 0, -1, -1, NULL, NULL, NULL, 255, 1337, 0, NULL};
+    choose_default_interface(&ctx);
 	if (parse_options(argc, argv, &ctx) || initialize_socket(&ctx) || initialize_results(&ctx)) {
         clear_nmap_context(&ctx);
 		return 1;

@@ -8,6 +8,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <ifaddrs.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -67,9 +68,11 @@ typedef struct nmap_context_s {
     int             udp_socket_fd;
     scan_result_t   *scan_result;
     char            *interface;
+    struct sockaddr *socket_addr;
     uint8_t         ttl;
     uint16_t        source_port;
     int             packet_trace;
+    struct ifaddrs  *if_addr;
 }	nmap_context_t;
 
 typedef struct tcpip_packet_s {

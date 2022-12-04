@@ -300,8 +300,6 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
             fprintf(stderr, "ft_nmap: number of ports should not exceed 1024\n");
             return 1;
         }
-    }if (ctx->interface == NULL) {
-        ctx->interface = "enp0s3";
     }
 	return 0;
 }
