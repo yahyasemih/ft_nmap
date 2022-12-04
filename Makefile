@@ -1,6 +1,6 @@
 NAME=ft_nmap
 CC=cc
-CFLAGS=-Wall -Wextra -Werror -g
+CFLAGS=-Wall -Wextra -Werror
 RM= rm -rf
 
 SRC=ft_nmap.c thread_utils.c printing_utils.c options_utils.c net_utils.c scan_utils.c utilities.c
@@ -9,7 +9,7 @@ DEP=$(patsubst %.c,%.d,$(SRC))
 
 all: $(NAME)
 
-$(NAME): $(OBJ)
+$(NAME): $(OBJ) Makefile
 	$(CC) $(CFLAGS) $(OBJ) -pthread -o $(NAME)
 
 %.c:
