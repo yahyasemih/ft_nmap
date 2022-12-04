@@ -24,7 +24,7 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-    sprintf(filter_exp, "src %s", inet_ntoa(host_addr));
+    sprintf(filter_exp, "src %s and (udp or icmp)", inet_ntoa(host_addr));
     if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
         fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
         return NO_RESULT;
@@ -77,7 +77,7 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-    sprintf(filter_exp, "src %s and tcp and src port %u", inet_ntoa(host_addr), port);
+    sprintf(filter_exp, "src %s and tcp and src port %u and dst port %u", inet_ntoa(host_addr), port, ctx->source_port);
     if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
         fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
         return NO_RESULT;
