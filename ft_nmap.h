@@ -36,11 +36,12 @@ typedef enum scan_type_e {
 #define INVALID_THREADS_NUMBER	(uint8_t)0xff
 
 typedef enum port_state_e {
-    NO_RESULT       = 0x00,
-    CLOSED_PORT     = 0x01,
-    UNFILTERED_PORT = 0x02,
-    FILTERED_PORT   = 0x04,
-    OPEN_PORT       = 0x08
+    NO_RESULT           = 0x00,
+    UNFILTERED_PORT     = 0x01,
+    FILTERED_PORT       = 0x02,
+    OPEN_FILTERED_PORT  = 0x04,
+    CLOSED_PORT         = 0x08,
+    OPEN_PORT           = 0x10
 }   port_state_t;
 
 typedef struct scan_result_entry_s {

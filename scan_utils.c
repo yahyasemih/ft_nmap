@@ -24,7 +24,7 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
 	ssize_t received = recvfrom(ctx->udp_socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr,
             &dst_addr_len);
     if (received < 0) {
-        return OPEN_PORT | FILTERED_PORT;
+        return OPEN_FILTERED_PORT;
     }
     if (ctx->packet_trace) {
         printf("RCVD ");
@@ -62,17 +62,17 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
             if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
                 return CLOSED_PORT;
             } else {
-                return OPEN_PORT | FILTERED_PORT;
+                return OPEN_FILTERED_PORT;
             }
         } else {
-            return OPEN_PORT | FILTERED_PORT;
+            return OPEN_FILTERED_PORT;
         }
     } else if (scan_type == SCAN_ACK) {
         if (packet.ip_hdr.saddr == host_addr.s_addr) {
             if (packet.tcp_hdr.th_flags == TH_RST) {
                 return UNFILTERED_PORT;
             } else {
-                return OPEN_PORT | FILTERED_PORT;
+                return OPEN_FILTERED_PORT;
             }
         } else {
             return FILTERED_PORT;
@@ -112,10 +112,7 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_udp_scan(ctx,
                             ctx->ips[ip_idx + i], ctx->ports[port_idx + j]);
                 }
-                // TODO: change how to decide on conclusion
-                if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] == OPEN_PORT) {
-                    ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion = OPEN_PORT;
-                } else if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
+                if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
                         ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion) {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion =
                             ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k];

@@ -14,7 +14,7 @@ static const char  *port_state_to_str(port_state_t state) {
         return "Filtered";
     } else if (state == UNFILTERED_PORT) {
         return "Unfiltered";
-    } else if (state == (OPEN_PORT | FILTERED_PORT)) {
+    } else if (state == (OPEN_FILTERED_PORT)) {
         return "Open|filtered";
     } else {
         return "UNDEFINED";
