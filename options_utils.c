@@ -3,6 +3,7 @@
 //
 
 #include "options_utils.h"
+#include "utilities.h"
 
 static uint16_t    *append_port(uint16_t port, uint16_t *ports, uint16_t ports_number) {
     uint16_t *new_ports = (uint16_t *)malloc((ports_number + 1) * sizeof(uint16_t));
@@ -11,7 +12,7 @@ static uint16_t    *append_port(uint16_t port, uint16_t *ports, uint16_t ports_n
         free(ports);
         return NULL;
     }
-    memcpy(new_ports, ports, ports_number * sizeof(uint16_t));
+    ft_memcpy(new_ports, ports, ports_number * sizeof(uint16_t));
     new_ports[ports_number] = port;
     free(ports);
     return new_ports;
@@ -57,8 +58,8 @@ static int process_ports(char *arg, nmap_context_t *ctx) {
         }
         range_idx = is_port_range(start_ptr, (int)(end_ptr - start_ptr));
         if (range_idx > 0) {
-            port_a = atoi(start_ptr);
-            port_b = atoi(start_ptr + range_idx + 1);
+            port_a = ft_atoi(start_ptr);
+            port_b = ft_atoi(start_ptr + range_idx + 1);
             if (port_a < 0 || port_a > 65535 || port_b < 0 || port_b > 65535 || port_a > port_b) {
                 return 1;
             }
@@ -66,7 +67,7 @@ static int process_ports(char *arg, nmap_context_t *ctx) {
                 ctx->ports = append_port((uint16_t)port, ctx->ports, ctx->ports_number++);
             }
         } else if (is_valid_port(start_ptr, (int)(end_ptr - start_ptr))) {
-            port = atoi(start_ptr);
+            port = ft_atoi(start_ptr);
             if (port < 0 || port > 65535) {
                 return 1;
             }
@@ -97,7 +98,7 @@ static struct in_addr  *append_ip(char *ip, struct in_addr *ips, uint8_t ips_num
 		free(ips);
 		return NULL;
 	}
-	memcpy(new_ips, ips, ips_number * sizeof(struct in_addr));
+	ft_memcpy(new_ips, ips, ips_number * sizeof(struct in_addr));
 	new_ips[ips_number].s_addr = *(in_addr_t *)(info->ai_addr->sa_data + 2);
 	free(ips);
 	freeaddrinfo(info);
@@ -131,7 +132,7 @@ static int read_ips_from_file(char *filename, nmap_context_t *ctx) {
 }
 
 static uint8_t get_threads_number(char *arg) {
-	int x = atoi(arg);
+	int x = ft_atoi(arg);
 	if (x < 0 || x > 250) {
 		return INVALID_THREADS_NUMBER;
 	} else {
@@ -154,17 +155,17 @@ static scan_type_t get_scans(char *arg) {
 		while (*end_ptr != '\0' && *end_ptr != ',') {
 			end_ptr++;
 		}
-		if (strncmp(start_ptr, "NULL", end_ptr - start_ptr) == 0) {
+		if (ft_strncmp(start_ptr, "NULL", end_ptr - start_ptr) == 0) {
 			scans |= SCAN_NULL;
-		} else if (strncmp(start_ptr, "SYN", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "SYN", end_ptr - start_ptr) == 0) {
 			scans |= SCAN_SYN;
-		} else if (strncmp(start_ptr, "ACK", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "ACK", end_ptr - start_ptr) == 0) {
 			scans |= SCAN_ACK;
-		} else if (strncmp(start_ptr, "FIN", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "FIN", end_ptr - start_ptr) == 0) {
 			scans |= SCAN_FIN;
-		} else if (strncmp(start_ptr, "XMAS", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "XMAS", end_ptr - start_ptr) == 0) {
 			scans |= SCAN_XMAS;
-		} else if (strncmp(start_ptr, "UDP", end_ptr - start_ptr) == 0) {
+		} else if (ft_strncmp(start_ptr, "UDP", end_ptr - start_ptr) == 0) {
 			scans |= SCAN_UDP;
 		} else {
 			scans = INVALID_SCAN_TYPE;
@@ -219,53 +220,53 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
 			fprintf(stderr, "ft_nmap: invalid option: `%s'\n", argv[i]);
 			return 1;
 		}
-        if (i + 1 == argc && strcmp(argv[i], "--help") != 0 && strcmp(argv[i], "--packet-trace") != 0) {
+        if (i + 1 == argc && ft_strcmp(argv[i], "--help") != 0 && ft_strcmp(argv[i], "--packet-trace") != 0) {
             fprintf(stderr, "ft_nmap: argument required for `%s'\n", argv[i]);
             return 1;
         }
-		if (strcmp(argv[i], "--ip") == 0) {
+		if (ft_strcmp(argv[i], "--ip") == 0) {
 			ctx->ips = append_ip(argv[++i], ctx->ips, ctx->ips_number++);
 			if (ctx->ips == NULL) {
 				return 1;
 			}
-		} else if (strcmp(argv[i], "--file") == 0) {
+		} else if (ft_strcmp(argv[i], "--file") == 0) {
 			if (read_ips_from_file(argv[++i], ctx)) {
 				return 1;
 			}
-		} else if (strcmp(argv[i], "--speedup") == 0) {
+		} else if (ft_strcmp(argv[i], "--speedup") == 0) {
 			ctx->threads_number = get_threads_number(argv[++i]);
 			if (ctx->threads_number == INVALID_THREADS_NUMBER) {
 				fprintf(stderr, "ft_nmap: invalid number of threads: %s", argv[i]);
 				return 1;
 			}
-		} else if (strcmp(argv[i], "--scan") == 0) {
+		} else if (ft_strcmp(argv[i], "--scan") == 0) {
 			ctx->scan_types = get_scans(argv[++i]);
 			if (ctx->scan_types == INVALID_SCAN_TYPE) {
 				fprintf(stderr, "ft_nmap: invalid scan: `%s'", argv[i]);
 				return 1;
 			}
-        } else if (strcmp(argv[i], "--ports") == 0) {
+        } else if (ft_strcmp(argv[i], "--ports") == 0) {
             if (process_ports(argv[++i], ctx)) {
                 fprintf(stderr, "ft_nmap: invalid port argument: %s\n", argv[i]);
                 return 1;
             }
-        } else if (strcmp(argv[i], "--source-port") == 0) {
-            ctx->source_port = atoi(argv[++i]);
+        } else if (ft_strcmp(argv[i], "--source-port") == 0) {
+            ctx->source_port = ft_atoi(argv[++i]);
             if (ctx->source_port < 0 || ctx->source_port > 65535) {
                 fprintf(stderr, "ft_nmap: invalid source port argument: %s\n", argv[i]);
                 return 1;
             }
-        } else if (strcmp(argv[i], "--interface") == 0) {
+        } else if (ft_strcmp(argv[i], "--interface") == 0) {
 			ctx->interface = argv[++i];
-        } else if (strcmp(argv[i], "--packet-trace") == 0) {
+        } else if (ft_strcmp(argv[i], "--packet-trace") == 0) {
 			ctx->packet_trace = 1;
-        } else if (strcmp(argv[i], "--ttl") == 0) {
-			ctx->ttl = atoi(argv[++i]);
+        } else if (ft_strcmp(argv[i], "--ttl") == 0) {
+			ctx->ttl = ft_atoi(argv[++i]);
             if (ctx->ttl < 0 || ctx->ttl > 255) {
                 fprintf(stderr, "ft_nmap: ttl option must be a number between 0 and 255 (inclusive)\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "--help") == 0) {
+        } else if (ft_strcmp(argv[i], "--help") == 0) {
 			display_help(argv[0]);
             clear_nmap_context(ctx);
 			exit(0);

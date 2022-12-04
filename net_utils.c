@@ -3,6 +3,7 @@
 //
 
 #include "net_utils.h"
+#include "utilities.h"
 
 static void ft_ip_checksum(u_short *addr) {
     struct iphdr *ip_hdr = (struct iphdr*)(addr);
@@ -95,14 +96,14 @@ int initialize_socket(nmap_context_t *ctx) {
     if (setsockopt(ctx->tcp_socket_fd, IPPROTO_IP, IP_HDRINCL, &options, sizeof(options)) < 0
         || setsockopt (ctx->tcp_socket_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0
         || setsockopt (ctx->tcp_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0
-        || setsockopt( ctx->tcp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, ctx->interface, strlen(ctx->interface)) < 0) {
+        || setsockopt( ctx->tcp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, ctx->interface, ft_strlen(ctx->interface)) < 0) {
         fprintf(stderr, "ft_nmap: TCP setsockopt: %s\n", strerror(errno));
         return 1;
     }
     if (setsockopt(ctx->udp_socket_fd, IPPROTO_IP, IP_HDRINCL, &options, sizeof(options)) < 0
         || setsockopt (ctx->udp_socket_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0
         || setsockopt (ctx->udp_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0
-        || setsockopt( ctx->udp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, ctx->interface, strlen(ctx->interface)) < 0) {
+        || setsockopt( ctx->udp_socket_fd, SOL_SOCKET, SO_BINDTODEVICE, ctx->interface, ft_strlen(ctx->interface)) < 0) {
         fprintf(stderr, "ft_nmap: UDP setsockopt: %s\n", strerror(errno));
         return 1;
     }
@@ -127,7 +128,7 @@ tcpip_packet_t  create_tcp_packet(struct in_addr dst_ip, u_short port, scan_type
     tcpip_packet_t  packet;
     struct timeval tv;
 
-    bzero(&packet, sizeof(packet));
+    ft_bzero(&packet, sizeof(packet));
     gettimeofday(&tv, NULL);
     inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);
     packet.ip_hdr.daddr = dst_ip.s_addr;
@@ -154,7 +155,7 @@ udpip_packet_t  create_udp_packet(struct in_addr dst_ip, u_short port) {
     udpip_packet_t  packet;
     struct timeval  tv;
 
-    bzero(&packet, sizeof(packet));
+    ft_bzero(&packet, sizeof(packet));
     gettimeofday(&tv, NULL);
     inet_pton(AF_INET, "10.11.100.232", &packet.ip_hdr.saddr);
     packet.ip_hdr.daddr = dst_ip.s_addr;

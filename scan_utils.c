@@ -4,6 +4,7 @@
 
 #include "scan_utils.h"
 #include "net_utils.h"
+#include "utilities.h"
 
 static port_state_t do_udp_scan(int socket_fd, struct in_addr host_addr, uint16_t port) {
     struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
@@ -15,7 +16,7 @@ static port_state_t do_udp_scan(int socket_fd, struct in_addr host_addr, uint16_
         perror("sendto");
         return NO_RESULT;
     }
-    bzero(&packet, sizeof(packet));
+    ft_bzero(&packet, sizeof(packet));
 	ssize_t received = recvfrom(socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
     if (received < 0) {
         return OPEN_PORT | FILTERED_PORT;
@@ -32,7 +33,7 @@ static port_state_t    do_tcp_scan(int socket_fd, struct in_addr host_addr, uint
     if (sent < 0) {
         return NO_RESULT;
     }
-    bzero(&packet, sizeof(packet));
+    ft_bzero(&packet, sizeof(packet));
 	ssize_t received = recvfrom(socket_fd, &packet, sizeof(packet), 0, (struct sockaddr *)&dst_addr, &dst_addr_len);
     if (received < 0) {
         return FILTERED_PORT;

@@ -8,6 +8,7 @@
 #include "printing_utils.h"
 #include "scan_utils.h"
 #include "thread_utils.h"
+#include "utilities.h"
 
 void clear_nmap_context(nmap_context_t *ctx) {
     close(ctx->tcp_socket_fd);
@@ -37,7 +38,7 @@ int initialize_results(nmap_context_t *ctx) {
         if (ctx->scan_result[i].entries == NULL) {
             return 1;
         }
-        bzero(ctx->scan_result[i].entries, ctx->ports_number * sizeof(scan_result_entry_t));
+        ft_bzero(ctx->scan_result[i].entries, ctx->ports_number * sizeof(scan_result_entry_t));
         ctx->scan_result[i].open_ports = 0;
         ctx->scan_result[i].total_ports = ctx->ports_number;
     }
