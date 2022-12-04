@@ -225,6 +225,10 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
             fprintf(stderr, "ft_nmap: argument required for `%s'\n", argv[i]);
             return 1;
         }
+        if (argv[i + 1] != NULL && ft_strlen(argv[i + 1]) == 0) {
+            fprintf(stderr, "ft_nmap: invalid argument for `%s'\n", argv[i]);
+            return 1;
+        }
 		if (ft_strcmp(argv[i], "--ip") == 0) {
 			ctx->ips = append_ip(argv[++i], ctx->ips, ctx->ips_number++);
 			if (ctx->ips == NULL) {
@@ -237,13 +241,13 @@ int	parse_options(int argc, char **argv, nmap_context_t *ctx) {
 		} else if (ft_strcmp(argv[i], "--speedup") == 0) {
 			ctx->threads_number = get_threads_number(argv[++i]);
 			if (ctx->threads_number == INVALID_THREADS_NUMBER) {
-				fprintf(stderr, "ft_nmap: invalid number of threads: %s", argv[i]);
+				fprintf(stderr, "ft_nmap: invalid number of threads: %s\n", argv[i]);
 				return 1;
 			}
 		} else if (ft_strcmp(argv[i], "--scan") == 0) {
 			ctx->scan_types = get_scans(argv[++i]);
 			if (ctx->scan_types == INVALID_SCAN_TYPE) {
-				fprintf(stderr, "ft_nmap: invalid scan: `%s'", argv[i]);
+				fprintf(stderr, "ft_nmap: invalid scan: `%s'\n", argv[i]);
 				return 1;
 			}
         } else if (ft_strcmp(argv[i], "--ports") == 0) {
