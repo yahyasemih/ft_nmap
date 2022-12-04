@@ -107,12 +107,12 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = NO_RESULT;
                     continue;
                 }
-                if (scan_type != SCAN_UDP) {
-                    ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_tcp_scan(ctx,
-                            ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
-                } else {
+                if (scan_type == SCAN_UDP) {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_udp_scan(ctx,
                             ctx->ips[ip_idx + i], ctx->ports[port_idx + j]);
+                } else {
+                    ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_tcp_scan(ctx,
+                            ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
                 }
                 if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
                         ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion) {
