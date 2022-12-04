@@ -60,20 +60,20 @@ static void ft_tcp_checksum(struct iphdr *ip_header, u_short *tcp_payload) {
 
 static void ft_udp_checksum(struct iphdr *ip_header, u_short *udp_payload) {
     u_long sum = 0;
-    u_short tcp_len = ntohs(ip_header->tot_len) - (ip_header->ihl << 2);
+    u_short udp_len = ntohs(ip_header->tot_len) - (ip_header->ihl << 2);
     struct udphdr *udp_hdr = (struct udphdr *)(udp_payload);
     sum += (ip_header->saddr >> 16) & 0xFFFF;
     sum += (ip_header->saddr) & 0xFFFF;
     sum += (ip_header->daddr >> 16) & 0xFFFF;
     sum += (ip_header->daddr) & 0xFFFF;
-    sum += htons(IPPROTO_TCP);
-    sum += htons(tcp_len);
+    sum += htons(IPPROTO_UDP);
+    sum += htons(udp_len);
     udp_hdr->check = 0;
-    while (tcp_len > 1) {
+    while (udp_len > 1) {
         sum += * udp_payload++;
-        tcp_len -= 2;
+        udp_len -= 2;
     }
-    if (tcp_len > 0) {
+    if (udp_len > 0) {
         sum += ((*udp_payload) & htons(0xFF00));
     }
     while (sum >> 16) {
