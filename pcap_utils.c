@@ -4,7 +4,7 @@
 int initialize_pcap(nmap_context_t *ctx) {
     char error_buffer[PCAP_ERRBUF_SIZE];
 
-    ctx->pcap_handle = pcap_open_live(ctx->interface, BUFSIZ, 1, 500, error_buffer);
+    ctx->pcap_handle = pcap_open_live(ctx->interface, BUFSIZ, 1, 1000, error_buffer);
     if (ctx->pcap_handle == NULL) {
         printf("ft_nmap: error openning live capture: %s\n", error_buffer);
         return 1;

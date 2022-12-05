@@ -107,6 +107,8 @@ int	main(int argc, char **argv) {
         return 1;
     }
     struct sigaction action;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
     action.sa_handler = signal_handler;
     sigaction(SIGALRM, &action, NULL);
     print_configurations(&ctx);
