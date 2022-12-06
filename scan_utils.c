@@ -76,7 +76,10 @@ static void set_tcp_result(tcpip_packet_t packet, nmap_context_t *ctx, scan_type
         return;
     }
     if (scan_type == SCAN_NULL || scan_type == SCAN_XMAS || scan_type == SCAN_FIN) {
-        if (packet.ip_hdr.saddr == host_addr.s_addr) {
+        if (packet.ip_hdr.protocol == IPPROTO_ICMP) {
+            result = FILTERED_PORT;
+        }
+        else if (packet.ip_hdr.saddr == host_addr.s_addr) {
             if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
                 result = CLOSED_PORT;
             } else {
@@ -162,6 +165,16 @@ static void do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t 
     set_tcp_result(packet, ctx, scan_type, host_addr, ip_idx, result_idx);
 }
 
+static port_state_t get_base_result(scan_type_t scan_type) {
+    if (scan_type == SCAN_NULL || scan_type == SCAN_XMAS || scan_type == SCAN_FIN) {
+        return OPEN_FILTERED_PORT;
+    } else if (scan_type == SCAN_ACK || scan_type == SCAN_SYN) {
+        return FILTERED_PORT;
+    } else {
+        return OPEN_FILTERED_PORT;
+    }
+}
+
 void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_idx, int ports_number) {
     for (int i = 0; i < ips_number && ip_idx + i < ctx->ips_number; ++i) {
         for (int j = 0; j < ports_number && port_idx + j < ctx->ports_number; ++j) {
@@ -174,6 +187,7 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = NO_RESULT;
                     continue;
                 }
+                ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = get_base_result(scan_type);
                 if (scan_type == SCAN_UDP) {
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_udp_scan(ctx,
                             ctx->ips[ip_idx + i], ctx->ports[port_idx + j]);
