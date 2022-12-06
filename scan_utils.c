@@ -28,17 +28,20 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
     pthread_mutex_lock(&ctx->mutex);
     if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
         fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
+        pthread_mutex_unlock(&ctx->mutex);
         return NO_RESULT;
     }
     if (pcap_setfilter(ctx->pcap_handle, &filter) == PCAP_ERROR) {
         fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
+        pthread_mutex_unlock(&ctx->mutex);
         return NO_RESULT;
     }
-    alarm(1);
+    alarm(2);
     if (pcap_dispatch(ctx->pcap_handle, 1, pcap_udp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
         fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
+        pthread_mutex_unlock(&ctx->mutex);
         return NO_RESULT;
     }
     alarm(0);
@@ -71,6 +74,7 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
     tcpip_packet_t packet = create_tcp_packet(host_addr, port, scan_type, ctx);
 	ssize_t sent = sendto(ctx->tcp_socket_fd, &packet, sizeof(packet), MSG_NOSIGNAL, (struct sockaddr *)&dst_addr,
             dst_addr_len);
+    pthread_mutex_lock(&ctx->mutex);
     if (ctx->packet_trace) {
         printf("SENT ");
         tcp_packet_trace(&packet);
@@ -79,30 +83,32 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         return NO_RESULT;
     }
     ft_bzero(&packet, sizeof(packet));
-    pthread_mutex_lock(&ctx->mutex);
     sprintf(filter_exp, "src %s and tcp", inet_ntoa(host_addr));
     if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
         fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
+        pthread_mutex_unlock(&ctx->mutex);
         return NO_RESULT;
     }
     if (pcap_setfilter(ctx->pcap_handle, &filter) == PCAP_ERROR) {
         fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
+        pthread_mutex_unlock(&ctx->mutex);
         return NO_RESULT;
     }
-    alarm(1);
+    alarm(2);
     if (pcap_dispatch(ctx->pcap_handle, 1, pcap_tcp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
         fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
+        pthread_mutex_unlock(&ctx->mutex);
         return NO_RESULT;
     }
     alarm(0);
     pcap_freecode(&filter);
-    pthread_mutex_unlock(&ctx->mutex);
     if (ctx->packet_trace && packet.ip_hdr.protocol == IPPROTO_TCP) {
         printf("RCVD ");
         tcp_packet_trace(&packet);
     }
+    pthread_mutex_unlock(&ctx->mutex);
     if (scan_type == SCAN_NULL || scan_type == SCAN_XMAS || scan_type == SCAN_FIN) {
         if (packet.ip_hdr.saddr == host_addr.s_addr) {
             if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
