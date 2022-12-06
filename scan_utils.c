@@ -65,7 +65,56 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
     }
 }
 
-static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t port, scan_type_t scan_type) {
+static void set_tcp_result(tcpip_packet_t packet, nmap_context_t *ctx, scan_type_t scan_type, struct in_addr host_addr, int ip_idx, int result_idx) {
+    uint16_t port = ntohs(packet.tcp_hdr.source);
+    port_state_t result;
+    int port_idx = 0;
+    while (port_idx < ctx->ports_number && ctx->ports[port_idx] != port) {
+        ++port_idx;
+    }
+    if (port_idx == ctx->ports_number) {
+        return;
+    }
+    if (scan_type == SCAN_NULL || scan_type == SCAN_XMAS || scan_type == SCAN_FIN) {
+        if (packet.ip_hdr.saddr == host_addr.s_addr) {
+            if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
+                result = CLOSED_PORT;
+            } else {
+                result = OPEN_FILTERED_PORT;
+            }
+        } else {
+            result = OPEN_FILTERED_PORT;
+        }
+    } else if (scan_type == SCAN_ACK) {
+        if (packet.ip_hdr.protocol == IPPROTO_TCP) {
+            if (packet.tcp_hdr.th_flags == TH_RST) {
+                result = UNFILTERED_PORT;
+            } else {
+                result = OPEN_FILTERED_PORT;
+            }
+        } else {
+            result = FILTERED_PORT;
+        }
+    } else if (scan_type == SCAN_SYN) {
+        if (packet.ip_hdr.protocol == IPPROTO_TCP) {
+            if (packet.tcp_hdr.th_flags == (TH_ACK | TH_SYN)) {
+                result = OPEN_PORT;
+            } else if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
+                result = CLOSED_PORT;
+            } else {
+                result = FILTERED_PORT;
+            }
+        } else {
+            result = FILTERED_PORT;
+        }
+    }
+    pthread_mutex_lock(&ctx->mutex);
+    ctx->scan_result[ip_idx].entries[port_idx].results[result_idx] = result;
+    pthread_mutex_unlock(&ctx->mutex);
+}
+
+static void do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr, uint16_t port, scan_type_t scan_type, int ip_idx,
+        int result_idx) {
 	struct sockaddr_in dst_addr = {AF_INET, port, host_addr, {0}};
 	socklen_t dst_addr_len = sizeof(dst_addr);
     char    filter_exp[100] = {0};
@@ -80,27 +129,28 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         tcp_packet_trace(&packet);
     }
     if (sent < 0) {
-        return NO_RESULT;
+        pthread_mutex_unlock(&ctx->mutex);
+        return;
     }
     ft_bzero(&packet, sizeof(packet));
     sprintf(filter_exp, "src %s and tcp", inet_ntoa(host_addr));
     if (pcap_compile(ctx->pcap_handle, &filter, filter_exp, 0, ctx->ip) == PCAP_ERROR) {
         fprintf(stderr, "Bad filter - %s\n", pcap_geterr(ctx->pcap_handle));
         pthread_mutex_unlock(&ctx->mutex);
-        return NO_RESULT;
+        return;
     }
     if (pcap_setfilter(ctx->pcap_handle, &filter) == PCAP_ERROR) {
         fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
         pthread_mutex_unlock(&ctx->mutex);
-        return NO_RESULT;
+        return;
     }
     alarm(2);
     if (pcap_dispatch(ctx->pcap_handle, 1, pcap_tcp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
         fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
         pthread_mutex_unlock(&ctx->mutex);
-        return NO_RESULT;
+        return;
     }
     alarm(0);
     pcap_freecode(&filter);
@@ -109,40 +159,7 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         tcp_packet_trace(&packet);
     }
     pthread_mutex_unlock(&ctx->mutex);
-    if (scan_type == SCAN_NULL || scan_type == SCAN_XMAS || scan_type == SCAN_FIN) {
-        if (packet.ip_hdr.saddr == host_addr.s_addr) {
-            if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
-                return CLOSED_PORT;
-            } else {
-                return OPEN_FILTERED_PORT;
-            }
-        } else {
-            return OPEN_FILTERED_PORT;
-        }
-    } else if (scan_type == SCAN_ACK) {
-        if (packet.ip_hdr.protocol == IPPROTO_TCP) {
-            if (packet.tcp_hdr.th_flags == TH_RST) {
-                return UNFILTERED_PORT;
-            } else {
-                return OPEN_FILTERED_PORT;
-            }
-        } else {
-            return FILTERED_PORT;
-        }
-    } else if (scan_type == SCAN_SYN) {
-        if (packet.ip_hdr.protocol == IPPROTO_TCP) {
-            if (packet.tcp_hdr.th_flags == (TH_ACK | TH_SYN)) {
-                return OPEN_PORT;
-            } else if (packet.tcp_hdr.th_flags == (TH_ACK | TH_RST)) {
-                return CLOSED_PORT;
-            } else {
-                return FILTERED_PORT;
-            }
-        } else {
-            return FILTERED_PORT;
-        }
-    }
-    return NO_RESULT;
+    set_tcp_result(packet, ctx, scan_type, host_addr, ip_idx, result_idx);
 }
 
 void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_idx, int ports_number) {
@@ -161,17 +178,8 @@ void    perform_scans(nmap_context_t *ctx, int ip_idx, int ips_number, int port_
                     ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_udp_scan(ctx,
                             ctx->ips[ip_idx + i], ctx->ports[port_idx + j]);
                 } else {
-                    ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] = do_tcp_scan(ctx,
-                            ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type);
+                    do_tcp_scan(ctx, ctx->ips[ip_idx + i], ctx->ports[port_idx + j], scan_type, i, k);
                 }
-                if (ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k] >
-                        ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion) {
-                    ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion =
-                            ctx->scan_result[ip_idx + i].entries[port_idx + j].results[k];
-                }
-            }
-            if (ctx->scan_result[ip_idx + i].entries[port_idx + j].conclusion == OPEN_PORT) {
-                ctx->scan_result[ip_idx + i].open_ports++;
             }
         }
     }

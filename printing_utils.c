@@ -105,6 +105,19 @@ void    print_results(nmap_context_t *ctx) {
         } else {
             printf("IP address: %s (%s)\n", inet_ntoa(ctx->ips[i]), hostname);
         }
+        for (int j = 0; j < ctx->ports_number; ++j) {
+            int k = 0;
+            for (scan_type_t scan_type = SCAN_NULL; scan_type <= SCAN_UDP; scan_type *= 2, ++k) {
+                if (ctx->scan_result[i].entries[j].results[k] >
+                        ctx->scan_result[i].entries[j].conclusion) {
+                    ctx->scan_result[i].entries[j].conclusion =
+                            ctx->scan_result[i].entries[j].results[k];
+                }
+            }
+            if (ctx->scan_result[i].entries[j].conclusion == OPEN_PORT) {
+                ctx->scan_result[i].open_ports++;
+            }
+        }
         print_ports(ctx->scan_result + i, "Open", ctx->scan_result->open_ports, OPEN_PORT, ctx->scan_types);
         print_ports(ctx->scan_result + i, "Closed/Filtered/Unfiltered",
                     ctx->ports_number - ctx->scan_result->open_ports, ~OPEN_PORT, ctx->scan_types);
