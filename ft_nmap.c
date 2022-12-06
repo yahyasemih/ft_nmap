@@ -12,10 +12,14 @@
 #include "utilities.h"
 
 void clear_nmap_context(nmap_context_t *ctx) {
-    close(ctx->tcp_socket_fd);
-    close(ctx->udp_socket_fd);
-    ctx->tcp_socket_fd = -1;
-    ctx->udp_socket_fd = -1;
+    if (ctx->tcp_socket_fd >= 0) {
+        close(ctx->tcp_socket_fd);
+        ctx->tcp_socket_fd = -1;
+    }
+    if (ctx->udp_socket_fd >= 0) {
+        close(ctx->udp_socket_fd);
+        ctx->udp_socket_fd = -1;
+    }
     free(ctx->ports);
     ctx->ports = NULL;
     free(ctx->ips);
@@ -29,7 +33,9 @@ void clear_nmap_context(nmap_context_t *ctx) {
     }
     freeifaddrs(ctx->if_addr);
     ctx->if_addr = NULL;
-    pcap_close(ctx->pcap_handle);
+    if (ctx->pcap_handle != NULL) {
+        pcap_close(ctx->pcap_handle);
+    }
     ctx->pcap_handle = NULL;
     pthread_mutex_destroy(&ctx->mutex);
 }

@@ -156,17 +156,17 @@ static scan_type_t get_scans(char *arg) {
 		while (*end_ptr != '\0' && *end_ptr != ',') {
 			end_ptr++;
 		}
-		if (ft_strncmp(start_ptr, "NULL", 4) == 0) {
+		if ((end_ptr - start_ptr) == 4 && ft_strncmp(start_ptr, "NULL", 4) == 0) {
 			scans |= SCAN_NULL;
-		} else if (ft_strncmp(start_ptr, "SYN", 3) == 0) {
+		} else if ((end_ptr - start_ptr) == 3 && ft_strncmp(start_ptr, "SYN", 3) == 0) {
 			scans |= SCAN_SYN;
-		} else if (ft_strncmp(start_ptr, "ACK", 3) == 0) {
+		} else if ((end_ptr - start_ptr) == 3 && ft_strncmp(start_ptr, "ACK", 3) == 0) {
 			scans |= SCAN_ACK;
-		} else if (ft_strncmp(start_ptr, "FIN", 3) == 0) {
+		} else if ((end_ptr - start_ptr) == 3 && ft_strncmp(start_ptr, "FIN", 3) == 0) {
 			scans |= SCAN_FIN;
-		} else if (ft_strncmp(start_ptr, "XMAS", 4) == 0) {
+		} else if ((end_ptr - start_ptr) == 4 && ft_strncmp(start_ptr, "XMAS", 4) == 0) {
 			scans |= SCAN_XMAS;
-		} else if (ft_strncmp(start_ptr, "UDP", 3) == 0) {
+		} else if ((end_ptr - start_ptr) == 3 && ft_strncmp(start_ptr, "UDP", 3) == 0) {
 			scans |= SCAN_UDP;
 		} else {
 			scans = INVALID_SCAN_TYPE;

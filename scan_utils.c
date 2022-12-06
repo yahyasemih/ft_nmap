@@ -35,7 +35,7 @@ static port_state_t do_udp_scan(nmap_context_t *ctx, struct in_addr host_addr, u
         pcap_freecode(&filter);
         return NO_RESULT;
     }
-    alarm(2);
+    alarm(1);
     if (pcap_dispatch(ctx->pcap_handle, 1, pcap_udp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
         fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
@@ -90,7 +90,7 @@ static port_state_t    do_tcp_scan(nmap_context_t *ctx, struct in_addr host_addr
         pcap_freecode(&filter);
         return NO_RESULT;
     }
-    alarm(2);
+    alarm(1);
     if (pcap_dispatch(ctx->pcap_handle, 1, pcap_tcp_callback, (unsigned char *)&packet) == PCAP_ERROR) {
         fprintf(stderr, "Error while dispatching - %s\n", pcap_geterr(ctx->pcap_handle));
         pcap_freecode(&filter);
